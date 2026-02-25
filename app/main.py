@@ -434,7 +434,7 @@ async def redeem_code(code_id: int, request: Request):
         if not sc:
             return JSONResponse({"ok": False, "error": "not found"}, status_code=404)
         sc.redeemed = True
-        sc.redeemed_at = datetime.now(timezone.utc)
+        sc.redeemed_at = datetime.utcnow()
         await db.commit()
         return {"ok": True}
 
