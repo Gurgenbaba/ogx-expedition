@@ -30,7 +30,6 @@
         <button class="btn btn-sm ghost" id="btn-clear-fleet" type="button">✕ Clear</button>
       </div>
     </div>
-      <span class="muted fs-12" id="per-slot-hint" style="color:var(--acc-1)"></span>
     </div>
 
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-bottom:20px">
@@ -299,18 +298,6 @@
     });
   });
 
-  // Live per-slot hint
-  function updatePerSlotHint() {
-    const slots = parseInt(document.getElementById("inp-slots").value)||7;
-    let total = 0;
-    document.querySelectorAll(".ship-input").forEach(inp => { total += parseInt(inp.value)||0; });
-    const hint = document.getElementById("per-slot-hint");
-    if(total > 0) hint.textContent = `÷ ${slots} slots = ${Math.floor(total/slots).toLocaleString("de-DE")} ships/slot`;
-    else hint.textContent = "";
-  }
-  document.querySelectorAll(".ship-input").forEach(inp => inp.addEventListener("input", updatePerSlotHint));
-  document.getElementById("inp-slots").addEventListener("input", updatePerSlotHint);
-
   // Sync astro level dropdown → hidden max input
   const astroSel = document.getElementById("inp-astro");
   const astroDisplay = document.getElementById("astro-cap-display");
@@ -465,14 +452,12 @@
         // also restore slots if saved
         if(fleet["__slots"]) document.getElementById("inp-slots").value = fleet["__slots"];
       }
-      updatePerSlotHint();
       return true;
     } catch { return false; }
   }
 
   function clearFleet() {
     document.querySelectorAll(".ship-input").forEach(inp => { inp.value = 0; });
-    updatePerSlotHint();
   }
 
   function checkSavedFleet() {
