@@ -104,19 +104,32 @@ def optimize_fleet(inp: OptimizerInput) -> OptimizerResult:
     needed_cargo = int(avg_total_loot * 1.2)  # 20% buffer
 
     # --- Step 1: How many GT needed per slot? ---
-    gt_per_slot = needed_cargo // SHIP_STATS["Großer Transporter"]["cargo"]
-    gt_per_slot = min(gt_per_slot, inp.max_ships_per_slot)
+    # available_ships = total fleet the user owns
+    # max_ships_per_slot = the per-slot cap the user sets (e.g. 15,010,000)
+    # Each slot can use up to max_ships_per_slot ships regardless of total count,
+    # BUT we can't use more than (total_available / slots) per slot on average.
+    gt_per_slot_needed = needed_cargo // SHIP_STATS["Großer Transporter"]["cargo"]
 
-    # Actual available GT per slot
-    avail_gt = inp.available_ships.get("Großer Transporter", 0)
-    gt_total_available = avail_gt
-
-    gt_per_slot_actual = min(gt_per_slot, gt_total_available // inp.slots)
+    avail_gt_total = inp.available_ships.get("Großer Transporter", 0)
+    # If user owns enough GT to fill all slots simultaneously, per-slot cap is the limit.
+    # If not, distribute evenly across slots.
+    gt_per_slot_available = (
+        avail_gt_total // max(inp.slots, 1)
+        if avail_gt_total < inp.max_ships_per_slot * inp.slots
+        else inp.max_ships_per_slot
+    )
+    avail_gt_per_slot = gt_per_slot_available  # used later for analysis
+    gt_per_slot_actual = min(
+        gt_per_slot_needed,
+        gt_per_slot_available,
+        inp.max_ships_per_slot,
+    )
 
     cargo_per_slot_with_gt = gt_per_slot_actual * SHIP_STATS["Großer Transporter"]["cargo"]
     cargo_deficit = max(0, needed_cargo - cargo_per_slot_with_gt)
 
-    # --- Step 2: Fill remaining ships with combat ---
+    # --- Step 2: Fill remaining ship slots with combat ships ---
+    # max_ships_per_slot is the cap PER slot, GT uses some of that
     remaining_slots_per_fleet = inp.max_ships_per_slot - gt_per_slot_actual
 
     # Combat ship priority: Schlachtkreuzer > Schlachtschiff > Zerstörer
@@ -128,7 +141,13 @@ def optimize_fleet(inp: OptimizerInput) -> OptimizerResult:
         avail = inp.available_ships.get(ship, 0)
         if avail <= 0 or remaining <= 0:
             continue
-        per_slot = min(avail // inp.slots, remaining)
+        # If user has enough to fill all slots, use max_ships_per_slot as cap
+        avail_per_slot = (
+            avail // max(inp.slots, 1)
+            if avail < inp.max_ships_per_slot * inp.slots
+            else remaining
+        )
+        per_slot = min(avail_per_slot, remaining)
         if per_slot > 0:
             combat_ships_per_slot[ship] = per_slot
             remaining -= per_slot
@@ -144,8 +163,8 @@ def optimize_fleet(inp: OptimizerInput) -> OptimizerResult:
     pirate_threshold = 20_000_000  # typical pirate fleet strength from data
     win_chance_estimate = min(95, int(50 + (total_attack / pirate_threshold) * 10))
 
-    # GT reduction vs current setup
-    current_gt_per_slot = inp.max_ships_per_slot  # user currently sends all GT
+    # GT reduction vs current setup — user currently sends all available GT per slot
+    current_gt_per_slot = avail_gt_per_slot // max(inp.slots, 1)
     gt_reduction = current_gt_per_slot - gt_per_slot_actual
     gt_freed = gt_reduction * inp.slots
 
