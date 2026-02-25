@@ -34,6 +34,10 @@ OUTCOME_HEADLINES = {
     "Gravitationsanomalie": "gravity",
 }
 
+# Smuggler code pattern: XXXX-XXXX-XXXX
+_RE_SMUGGLER_CODE = re.compile(r"\b(\d{4}-\d{4}-\d{4})\b")
+_RE_SMUGGLER_TIER = re.compile(r"Stufe\s*(\d+)", re.IGNORECASE)
+
 RESOURCE_LABELS = {
     "Metall": "metal",
     "Kristall": "crystal",
@@ -133,6 +137,9 @@ class ParsedExpedition:
     raw_text: str = ""
     parse_error: Optional[str] = None
 
+    smuggler_code: Optional[str] = None   # e.g. "0081-9438-3973"
+    smuggler_tier: Optional[int] = None   # 1, 2, 3...
+
     @property
     def dedup_key(self) -> str:
         if self.exp_number:
@@ -165,6 +172,11 @@ class ParsedExpedition:
             return
 
         if base == "success":
+            # Smuggler code takes priority over resource classification
+            if self.smuggler_code:
+                self.outcome_type = "smuggler_code"
+                return
+
             has_res = self.total_resources > 0
             has_dm = self.dark_matter > 0
             has_ships = bool(self.ships_delta)
@@ -326,6 +338,15 @@ def _parse_block(block: str) -> ParsedExpedition:
                     continue
 
         i += 1
+
+    # --- Smuggler codes ---
+    for line in lines:
+        m = _RE_SMUGGLER_CODE.search(line)
+        if m:
+            result.smuggler_code = m.group(1)
+        m2 = _RE_SMUGGLER_TIER.search(line)
+        if m2:
+            result.smuggler_tier = int(m2.group(1))
 
     # --- Classify ---
     result.classify_outcome()

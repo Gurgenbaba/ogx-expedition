@@ -1,4 +1,4 @@
-﻿# app/main.py
+# app/main.py
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
@@ -16,7 +16,7 @@ from sqlalchemy import select, func, text, delete
 from sqlalchemy.exc import IntegrityError
 
 from .db import engine, AsyncSessionLocal, IS_SQLITE, IS_POSTGRES
-from .models import Base, User, Expedition, ExpeditionImport
+from .models import Base, User, Expedition, ExpeditionImport, SmugglerCode
 from .settings import settings
 from .security import (
     require_jwt_user,
@@ -96,7 +96,7 @@ async def healthz():
 
 
 # ---------------------------------------------------------------------------
-# Auth (mirrors ogx-oraclev2 â€” reads/writes shared users table)
+# Auth (mirrors ogx-oraclev2 — reads/writes shared users table)
 # ---------------------------------------------------------------------------
 @app.post("/auth/login")
 async def auth_login(payload: dict = Body(...)):
@@ -205,7 +205,7 @@ async def do_import(request: Request, raw_text: str = Form(...)):
         if not parsed:
             return RedirectResponse(url="/import?error=no_expeditions_found", status_code=303)
 
-        # Cache user_id before rollbacks expire the ORM object
+        # Cache user_id before any flushes/rollbacks expire the ORM object
         uid = int(u.id)
 
         count_new = 0
@@ -244,6 +244,23 @@ async def do_import(request: Request, raw_text: str = Form(...)):
             except IntegrityError:
                 count_dup += 1
                 continue
+
+        # Save smuggler codes found in this import
+        for p in parsed:
+            if p.smuggler_code:
+                sc = SmugglerCode(
+                    user_id=uid,
+                    exp_number=p.exp_number,
+                    code=p.smuggler_code,
+                    tier=p.smuggler_tier,
+                    found_at=p.returned_at,
+                )
+                try:
+                    async with db.begin_nested():
+                        db.add(sc)
+                        await db.flush()
+                except IntegrityError:
+                    pass  # duplicate code
 
         imp = ExpeditionImport(
             user_id=uid,
@@ -286,7 +303,7 @@ async def stats_page(request: Request):
             by_type[t]["deut"] += e.deuterium
             by_type[t]["dm"] += e.dark_matter
             if e.ships_delta:
-                by_type[t]["gt_lost"] += abs(e.ships_delta.get("GroÃŸer Transporter", 0))
+                by_type[t]["gt_lost"] += abs(e.ships_delta.get("Großer Transporter", 0))
 
         # Ships gained (across all expeditions)
         ships_gained: dict[str, int] = {}
@@ -380,3 +397,76 @@ async def delete_all_expeditions(request: Request):
         await db.commit()
         return {"ok": True}
 
+
+@app.get("/codes", response_class=HTMLResponse)
+async def codes_page(request: Request):
+    async with AsyncSessionLocal() as db:
+        u, _ = await require_jwt_user(request, db)
+        if not u:
+            return RedirectResponse(url="/", status_code=303)
+
+        codes = (await db.execute(
+            select(SmugglerCode)
+            .where(SmugglerCode.user_id == u.id)
+            .order_by(SmugglerCode.redeemed, SmugglerCode.found_at.desc())
+        )).scalars().all()
+
+        pending = [c for c in codes if not c.redeemed]
+        redeemed = [c for c in codes if c.redeemed]
+
+        return _template(request, "codes.html", {
+            "title": "Smuggler Codes",
+            "active_nav": "codes",
+            "pending": pending,
+            "redeemed": redeemed,
+        })
+
+
+@app.post("/codes/{code_id}/redeem", response_class=JSONResponse)
+async def redeem_code(code_id: int, request: Request):
+    async with AsyncSessionLocal() as db:
+        u, err = await require_jwt_user(request, db)
+        if err:
+            return err
+        sc = (await db.execute(
+            select(SmugglerCode).where(SmugglerCode.id == code_id, SmugglerCode.user_id == u.id)
+        )).scalar_one_or_none()
+        if not sc:
+            return JSONResponse({"ok": False, "error": "not found"}, status_code=404)
+        sc.redeemed = True
+        sc.redeemed_at = datetime.now(timezone.utc)
+        await db.commit()
+        return {"ok": True}
+
+
+@app.post("/codes/{code_id}/unredeem", response_class=JSONResponse)
+async def unredeem_code(code_id: int, request: Request):
+    async with AsyncSessionLocal() as db:
+        u, err = await require_jwt_user(request, db)
+        if err:
+            return err
+        sc = (await db.execute(
+            select(SmugglerCode).where(SmugglerCode.id == code_id, SmugglerCode.user_id == u.id)
+        )).scalar_one_or_none()
+        if not sc:
+            return JSONResponse({"ok": False, "error": "not found"}, status_code=404)
+        sc.redeemed = False
+        sc.redeemed_at = None
+        await db.commit()
+        return {"ok": True}
+
+
+@app.delete("/codes/{code_id}", response_class=JSONResponse)
+async def delete_code(code_id: int, request: Request):
+    async with AsyncSessionLocal() as db:
+        u, err = await require_jwt_user(request, db)
+        if err:
+            return err
+        sc = (await db.execute(
+            select(SmugglerCode).where(SmugglerCode.id == code_id, SmugglerCode.user_id == u.id)
+        )).scalar_one_or_none()
+        if not sc:
+            return JSONResponse({"ok": False, "error": "not found"}, status_code=404)
+        await db.delete(sc)
+        await db.commit()
+        return {"ok": True}

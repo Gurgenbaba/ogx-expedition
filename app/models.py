@@ -131,3 +131,23 @@ class ExpeditionImport(Base):
     count_new: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     count_duplicate: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     count_failed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+
+class SmugglerCode(Base):
+    __tablename__ = "smuggler_codes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    exp_number: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
+    code: Mapped[str] = mapped_column(String(16), nullable=False)        # "0081-9438-3973"
+    tier: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # 1, 2, 3
+    found_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    redeemed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=text("false"))
+    redeemed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    imported_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_now, server_default=SERVER_NOW)
+
+    __table_args__ = (
+        Index("ix_smuggler_user", "user_id"),
+        # one code per user (same code can't be found twice)
+        Index("ix_smuggler_user_code", "user_id", "code", unique=True),
+    )
