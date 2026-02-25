@@ -2,7 +2,10 @@
 {% block title %}Stats — OGX Expedition{% endblock %}
 {% block content %}
 
-<h1 style="margin-bottom:20px">Expedition Statistics</h1>
+<div class="row between" style="margin-bottom:20px">
+  <h1>Expedition Statistics</h1>
+  <a href="/expeditions/export.csv" class="btn btn-sm ghost" download>⬇ Export CSV</a>
+</div>
 
 {% if not stats %}
 <div class="empty-state">No data yet. <a href="/import" class="btn btn-sm" style="margin-left:8px">Import</a></div>

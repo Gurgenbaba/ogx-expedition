@@ -1,6 +1,8 @@
 # app/main.py
 from __future__ import annotations
 
+import csv
+import io
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -8,12 +10,13 @@ from typing import Optional
 
 from fastapi import FastAPI, Request, Form, Body
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from sqlalchemy import select, func, text, delete
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from .db import engine, AsyncSessionLocal, IS_SQLITE, IS_POSTGRES
 from .models import Base, User, Expedition, ExpeditionImport, SmugglerCode
@@ -81,6 +84,21 @@ def _template(request: Request, name: str, ctx: dict) -> HTMLResponse:
     base = {"request": request}
     base.update(ctx)
     return templates.TemplateResponse(request, name, base)
+
+
+async def _template_with_codes(request: Request, name: str, ctx: dict, db, user) -> HTMLResponse:
+    """Like _template but injects pending_codes_count for nav badge."""
+    pending_codes = 0
+    if user:
+        try:
+            pending_codes = (await db.execute(
+                select(func.count(SmugglerCode.id))
+                .where(SmugglerCode.user_id == user.id, SmugglerCode.redeemed == False)  # noqa: E712
+            )).scalar() or 0
+        except Exception:
+            pass
+    ctx["pending_codes_count"] = pending_codes
+    return _template(request, name, ctx)
 
 
 def _utcnow() -> datetime:
@@ -172,14 +190,14 @@ async def dashboard(request: Request):
         # Resources over time (last 50)
         recent = [e for e in exps[:50] if e.metal > 0]
 
-        return _template(request, "dashboard.html", {
+        return await _template_with_codes(request, "dashboard.html", {
             "user": u,
             "stats": stats,
             "outcome_counts": outcome_counts,
             "recent": recent,
             "total": len(exps),
             "active_nav": "dashboard",
-        })
+        }, db, u)
 
 
 @app.get("/import", response_class=HTMLResponse)
@@ -188,7 +206,7 @@ async def import_page(request: Request):
         u, _ = await require_jwt_user(request, db)
         if not u:
             return RedirectResponse(url="/", status_code=303)
-        return _template(request, "import.html", {"user": u, "active_nav": "import"})
+        return await _template_with_codes(request, "import.html", {"user": u, "active_nav": "import"}, db, u)
 
 
 @app.post("/import")
@@ -217,7 +235,7 @@ async def do_import(request: Request, raw_text: str = Form(...)):
                 count_fail += 1
                 continue
 
-            exp = Expedition(
+            row = dict(
                 user_id=uid,
                 exp_number=p.exp_number,
                 returned_at=p.returned_at,
@@ -236,31 +254,51 @@ async def do_import(request: Request, raw_text: str = Form(...)):
                 raw_text=p.raw_text[:2000] if p.raw_text else None,
                 dedup_key=p.dedup_key,
             )
-            try:
-                async with db.begin_nested():
-                    db.add(exp)
-                    await db.flush()
-                count_new += 1
-            except IntegrityError:
-                count_dup += 1
-                continue
+
+            if IS_POSTGRES:
+                # Silent upsert — zero errors in DB log, no savepoint overhead
+                stmt = pg_insert(Expedition).values(**row)
+                stmt = stmt.on_conflict_do_nothing(index_elements=["dedup_key"])
+                result = await db.execute(stmt)
+                if result.rowcount:
+                    count_new += 1
+                else:
+                    count_dup += 1
+            else:
+                # SQLite fallback
+                exp = Expedition(**row)
+                try:
+                    async with db.begin_nested():
+                        db.add(exp)
+                        await db.flush()
+                    count_new += 1
+                except IntegrityError:
+                    count_dup += 1
 
         # Save smuggler codes found in this import
         for p in parsed:
             if p.smuggler_code:
-                sc = SmugglerCode(
+                sc_row = dict(
                     user_id=uid,
                     exp_number=p.exp_number,
                     code=p.smuggler_code,
                     tier=p.smuggler_tier,
                     found_at=p.returned_at,
                 )
-                try:
-                    async with db.begin_nested():
-                        db.add(sc)
-                        await db.flush()
-                except IntegrityError:
-                    pass  # duplicate code
+                if IS_POSTGRES:
+                    sc_stmt = pg_insert(SmugglerCode).values(**sc_row)
+                    sc_stmt = sc_stmt.on_conflict_do_nothing(
+                        constraint="ix_smuggler_user_code"
+                    )
+                    await db.execute(sc_stmt)
+                else:
+                    sc = SmugglerCode(**sc_row)
+                    try:
+                        async with db.begin_nested():
+                            db.add(sc)
+                            await db.flush()
+                    except IntegrityError:
+                        pass  # duplicate code
 
         imp = ExpeditionImport(
             user_id=uid,
@@ -317,7 +355,7 @@ async def stats_page(request: Request):
                 else:
                     ships_lost[ship] = ships_lost.get(ship, 0) + abs(qty)
 
-        return _template(request, "stats.html", {
+        return await _template_with_codes(request, "stats.html", {
             "user": u,
             "stats": stats,
             "by_type": by_type,
@@ -325,7 +363,7 @@ async def stats_page(request: Request):
             "ships_lost": dict(sorted(ships_lost.items(), key=lambda x: -x[1])),
             "total": len(exps),
             "active_nav": "stats",
-        })
+        }, db, u)
 
 
 @app.get("/dm", response_class=HTMLResponse)
@@ -396,7 +434,7 @@ async def dm_page(request: Request):
         dm_expos_count = len(exps)
         dm_rate = round(dm_expos_count / all_exps_count * 100, 1) if all_exps_count else 0
 
-        return _template(request, "dm.html", {
+        return await _template_with_codes(request, "dm.html", {
             "user": u,
             "active_nav": "dm",
             "total_dm": total_dm,
@@ -407,7 +445,7 @@ async def dm_page(request: Request):
             "dm_rate": dm_rate,
             "weekly": last_12_weeks,
             "monthly": last_12_months,
-        })
+        }, db, u)
 
 
 @app.get("/optimizer", response_class=HTMLResponse)
@@ -422,12 +460,12 @@ async def optimizer_page(request: Request):
         )).scalars().all()
         stats = get_user_stats_summary(list(exps))
 
-        return _template(request, "optimizer.html", {
+        return await _template_with_codes(request, "optimizer.html", {
             "user": u,
             "stats": stats,
             "ship_names": list(SHIP_STATS.keys()),
             "active_nav": "optimizer",
-        })
+        }, db, u)
 
 
 @app.post("/optimizer/calculate")
@@ -480,6 +518,48 @@ async def optimizer_calculate(request: Request, payload: dict = Body(...)):
         }
 
 
+
+@app.get("/expeditions/export.csv")
+async def export_csv(request: Request):
+    async with AsyncSessionLocal() as db:
+        u, err = await require_jwt_user(request, db)
+        if err:
+            return err
+
+        exps = (await db.execute(
+            select(Expedition).where(Expedition.user_id == u.id)
+            .order_by(Expedition.returned_at.desc())
+        )).scalars().all()
+
+        buf = io.StringIO()
+        writer = csv.writer(buf)
+        writer.writerow([
+            "exp_number", "returned_at", "outcome_type",
+            "metal", "crystal", "deuterium", "dark_matter",
+            "dark_matter_bonus", "dark_matter_bonus_pct",
+            "ships_delta", "loss_percent",
+            "pirate_strength", "pirate_win_chance", "pirate_loss_rate",
+        ])
+        for e in exps:
+            writer.writerow([
+                e.exp_number or "",
+                e.returned_at.strftime("%Y-%m-%d %H:%M:%S") if e.returned_at else "",
+                e.outcome_type,
+                e.metal, e.crystal, e.deuterium, e.dark_matter,
+                e.dark_matter_bonus, e.dark_matter_bonus_pct,
+                str(e.ships_delta) if e.ships_delta else "",
+                e.loss_percent if e.loss_percent is not None else "",
+                e.pirate_strength or "", e.pirate_win_chance or "", e.pirate_loss_rate or "",
+            ])
+
+        buf.seek(0)
+        return StreamingResponse(
+            iter([buf.getvalue()]),
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename=expeditions_{u.username}.csv"},
+        )
+
+
 @app.delete("/expeditions/all")
 async def delete_all_expeditions(request: Request):
     async with AsyncSessionLocal() as db:
@@ -513,7 +593,7 @@ async def outcomes_page(request: Request):
         outcomes: dict = defaultdict(lambda: {
             "count": 0, "metal": 0, "crystal": 0, "deut": 0, "dm": 0,
             "ships_lost": {}, "ships_gained": {},
-        })
+        }, db, u)
 
         # Weekly timeline: {week: {outcome_type: count}}
         weekly: dict = defaultdict(lambda: defaultdict(int))
@@ -553,14 +633,14 @@ async def outcomes_page(request: Request):
                 entry[ot] = weekly[wk].get(ot, 0)
             timeline.append(entry)
 
-        return _template(request, "outcomes.html", {
+        return await _template_with_codes(request, "outcomes.html", {
             "user": u,
             "active_nav": "outcomes",
             "total": total,
             "outcomes": dict(sorted(outcomes.items(), key=lambda x: -x[1]["count"])),
             "timeline": timeline,
             "outcome_types": all_outcome_types,
-        })
+        }, db, u)
 
 
 @app.get("/codes", response_class=HTMLResponse)
@@ -579,12 +659,12 @@ async def codes_page(request: Request):
         pending = [c for c in codes if not c.redeemed]
         redeemed = [c for c in codes if c.redeemed]
 
-        return _template(request, "codes.html", {
+        return await _template_with_codes(request, "codes.html", {
             "title": "Smuggler Codes",
             "active_nav": "codes",
             "pending": pending,
             "redeemed": redeemed,
-        })
+        }, db, u)
 
 
 @app.post("/codes/{code_id}/redeem", response_class=JSONResponse)

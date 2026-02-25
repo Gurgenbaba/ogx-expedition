@@ -61,6 +61,7 @@ OUTCOME_TYPES = (
     "pirates_win", "pirates_loss",
     "storm", "contact_lost", "gravity",
     "vanished", "failed",
+    "smuggler_code",  # expedition that yielded a smuggler code (no resources)
 )
 
 

@@ -32,6 +32,10 @@ OUTCOME_HEADLINES = {
     "Ionensturm": "storm",
     "Kontakt verloren": "contact_lost",
     "Gravitationsanomalie": "gravity",
+    # Alternate phrasings found in some server versions
+    "Expeditionsbericht: Erfolgreich": "success",
+    "Keine Funde": "failed",
+    "Piraten": "success",   # pirate encounter headline — classified via pirate_strength below
 }
 
 # Smuggler code pattern: XXXX-XXXX-XXXX
@@ -92,12 +96,22 @@ def _parse_num(s: str) -> int:
 
 
 def _parse_timestamp(date_str: str, time_str: str) -> Optional[datetime]:
-    """Parse '25.02' or '25.02.26' + '02:14:33' to datetime."""
+    """Parse '25.02' or '25.02.26' + '02:14:33' to datetime.
+
+    For 2-part dates (DD.MM) we infer the year:
+    If the resulting date would be more than 60 days in the future we assume
+    it belongs to the previous year (handles year-end imports in January).
+    """
     try:
         parts = date_str.split(".")
         if len(parts) == 2:
             day, month = int(parts[0]), int(parts[1])
-            year = datetime.utcnow().year
+            now = datetime.utcnow()
+            year = now.year
+            dt = datetime(year, month, day)
+            # If the date is suspiciously far in the future, it's last year
+            if (dt - now).days > 60:
+                year -= 1
         elif len(parts) == 3:
             day, month = int(parts[0]), int(parts[1])
             y = int(parts[2])

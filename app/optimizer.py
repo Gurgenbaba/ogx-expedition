@@ -28,7 +28,7 @@ SHIP_STATS: dict[str, dict] = {
     "Bomber":               {"cargo": 500,       "attack": 1_000,   "points": 75,     "type": "combat"},
     "Zerstörer":            {"cargo": 2_000,     "attack": 2_000,   "points": 110,    "type": "combat"},
     "Todesstern":           {"cargo": 1_000_000, "attack": 200_000, "points": 9_000,  "type": "combat"},
-    "Kleiner Transporter":  {"cargo": 5_000,     "attack": 5,       "points": 4,      "type": "cargo"},
+    "Pathfinder":           {"cargo": 10_000,    "attack": 0,       "points": 23,     "type": "cargo"},
     "Spionagesonde":        {"cargo": 5,         "attack": 0,       "points": 1,      "type": "support"},
 }
 

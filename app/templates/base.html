@@ -23,7 +23,9 @@
         <a href="/outcomes" class="{% if active_nav == 'outcomes' %}active{% endif %}">Outcomes</a>
         <a href="/dm" class="{% if active_nav == 'dm' %}active{% endif %}">💎 DM</a>
         <a href="/optimizer" class="{% if active_nav == 'optimizer' %}active{% endif %}">Optimizer</a>
-        <a href="/codes" class="{% if active_nav == 'codes' %}active{% endif %}">Codes</a>
+        <a href="/codes" class="{% if active_nav == 'codes' %}active{% endif %}">
+          Codes{% if pending_codes_count is defined and pending_codes_count > 0 %}<span class="badge-count">{{ pending_codes_count }}</span>{% endif %}
+        </a>
         <a href="https://ogx-oraclev2-production.up.railway.app" target="_blank" class="muted">← Oracle</a>
       </nav>
       <div class="authbox" id="authbox">
