@@ -367,11 +367,12 @@
       const lower = line.toLowerCase();
       for (const [key, canonical] of Object.entries(SHIP_NAME_MAP)) {
         if (lower.includes(key)) {
-          // Extract all numbers (de-DE format: 1.234.567 → strip dots)
-          const nums = [...line.matchAll(/\d[\d.]*/g)]
-            .map(m => parseInt(m[0].replace(/\./g, '')))
-            .filter(n => n >= 1 && n < 2_000_000_000);
-          if (nums.length) result[canonical] = Math.max(...nums);
+          // Strip "max" from end, then take the LAST number on the line
+          // (fleet count is always last, before "max" — speed can be larger for Spionagesonde etc.)
+          const clean = line.replace(/max$/i, '').replace(/\bmax\b/gi, '').trim();
+          const nums = [...clean.matchAll(/\d[\d.]*/g)].map(m => parseInt(m[0].replace(/\./g, '')));
+          const valid = nums.filter(n => n >= 0 && n < 2_000_000_000);
+          if (valid.length) result[canonical] = valid[valid.length - 1]; // LAST number = fleet count
           break;
         }
       }
