@@ -374,15 +374,25 @@ async def optimizer_calculate(request: Request, payload: dict = Body(...)):
         )
 
         result = optimize_fleet(inp)
-        slot = result.recommended_slots[0] if result.recommended_slots else None
+        a = result.analysis
+
+        def slot_to_dict(s):
+            return {
+                "ships": s.ships,
+                "total_count": s.total_count,
+                "total_cargo": s.total_cargo,
+                "total_attack": s.total_attack,
+                "total_points": s.total_points,
+            }
 
         return {
             "ok": True,
-            "slot_composition": slot.ships if slot else {},
-            "slot_cargo": slot.total_cargo if slot else 0,
-            "slot_count": slot.total_count if slot else 0,
-            "slot_attack": slot.total_attack if slot else 0,
-            "analysis": result.analysis,
+            "needed_cargo": a["needed_cargo"],
+            "avg_total_loot": a["avg_total_loot"],
+            "current": {**slot_to_dict(a["current"]["slot"]), **{k:v for k,v in a["current"].items() if k!="slot"}},
+            "safe":       {**slot_to_dict(a["safe"]["slot"]),       **{k:v for k,v in a["safe"].items()       if k!="slot"}},
+            "balanced":   {**slot_to_dict(a["balanced"]["slot"]),   **{k:v for k,v in a["balanced"].items()   if k!="slot"}},
+            "aggressive": {**slot_to_dict(a["aggressive"]["slot"]), **{k:v for k,v in a["aggressive"].items() if k!="slot"}},
             "warnings": result.warnings,
         }
 
