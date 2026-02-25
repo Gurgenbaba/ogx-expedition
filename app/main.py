@@ -328,6 +328,88 @@ async def stats_page(request: Request):
         })
 
 
+@app.get("/dm", response_class=HTMLResponse)
+async def dm_page(request: Request):
+    async with AsyncSessionLocal() as db:
+        u, _ = await require_jwt_user(request, db)
+        if not u:
+            return RedirectResponse(url="/", status_code=303)
+
+        exps = (await db.execute(
+            select(Expedition)
+            .where(Expedition.user_id == u.id)
+            .where(Expedition.dark_matter > 0)
+            .order_by(Expedition.returned_at.asc())
+        )).scalars().all()
+
+        all_exps_count = (await db.execute(
+            select(func.count(Expedition.id)).where(Expedition.user_id == u.id)
+        )).scalar() or 0
+
+        # Build weekly/monthly buckets
+        from collections import defaultdict
+        import datetime
+
+        weekly: dict[str, int] = defaultdict(int)
+        monthly: dict[str, int] = defaultdict(int)
+        total_dm = 0
+        total_bonus = 0
+
+        for e in exps:
+            if not e.returned_at:
+                continue
+            dm = e.dark_matter
+            total_dm += dm
+            total_bonus += e.dark_matter_bonus
+
+            # ISO week key: "2025-W42"
+            iso = e.returned_at.isocalendar()
+            wk = f"{iso[0]}-W{iso[1]:02d}"
+            weekly[wk] += dm
+
+            # Month key: "2025-10"
+            mk = e.returned_at.strftime("%Y-%m")
+            monthly[mk] += dm
+
+        # Fill missing weeks (last 12 weeks) with 0
+        today = datetime.date.today()
+        last_12_weeks = []
+        for i in range(11, -1, -1):
+            d = today - datetime.timedelta(weeks=i)
+            iso = d.isocalendar()
+            wk = f"{iso[0]}-W{iso[1]:02d}"
+            last_12_weeks.append({"label": wk, "dm": weekly.get(wk, 0)})
+
+        last_12_months = []
+        for i in range(11, -1, -1):
+            # subtract months
+            year = today.year
+            month = today.month - i
+            while month <= 0:
+                month += 12
+                year -= 1
+            mk = f"{year}-{month:02d}"
+            label = datetime.date(year, month, 1).strftime("%b %Y")
+            last_12_months.append({"label": label, "key": mk, "dm": monthly.get(mk, 0)})
+
+        dm_per_expo = round(total_dm / all_exps_count) if all_exps_count else 0
+        dm_expos_count = len(exps)
+        dm_rate = round(dm_expos_count / all_exps_count * 100, 1) if all_exps_count else 0
+
+        return _template(request, "dm.html", {
+            "user": u,
+            "active_nav": "dm",
+            "total_dm": total_dm,
+            "total_bonus": total_bonus,
+            "dm_per_expo": dm_per_expo,
+            "dm_expos_count": dm_expos_count,
+            "all_exps_count": all_exps_count,
+            "dm_rate": dm_rate,
+            "weekly": last_12_weeks,
+            "monthly": last_12_months,
+        })
+
+
 @app.get("/optimizer", response_class=HTMLResponse)
 async def optimizer_page(request: Request):
     async with AsyncSessionLocal() as db:
