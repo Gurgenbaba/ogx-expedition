@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% block title %}Fleet Optimizer — OGX Expedition{% endblock %}
+{% block content %}
+
+<div style="max-width:860px;margin:0 auto">
+  <h1 style="margin-bottom:6px">Fleet Optimizer</h1>
+  <p class="muted" style="font-size:13px;margin-bottom:24px">
+    Enter your available ships and slots. The optimizer calculates the ideal fleet mix
+    based on your historical expedition data.
+  </p>
+
+  {% if stats and stats.avg_total_res %}
+  <div class="card" style="padding:16px 20px;margin-bottom:20px;border-color:var(--acc-3)">
+    <div class="row gap">
+      <div>
+        <div class="fs-12 muted">Based on your data</div>
+        <div style="font-weight:600;margin-top:2px">
+          Avg loot: {{ stats.avg_total_res | fmt_num }} / run &nbsp;·&nbsp;
+          {{ stats.total }} expeditions logged
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="card" style="padding:24px;margin-bottom:20px">
+    <h2>Your Fleet</h2>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-bottom:20px">
+      {% for ship in ship_names %}
+      <div style="display:flex;align-items:center;justify-content:space-between;
+                  background:rgba(0,0,0,.2);border:1px solid var(--line-1);
+                  border-radius:10px;padding:10px 14px">
+        <label class="fs-13" style="color:var(--text-1)" for="ship-{{ loop.index }}">{{ ship }}</label>
+        <input type="number" id="ship-{{ loop.index }}" data-ship="{{ ship }}"
+               class="ship-input" min="0" value="0"
+               style="width:110px;padding:6px 10px;border-radius:8px;border:1px solid var(--line-2);
+                      background:rgba(0,0,0,.3);color:var(--text-0);text-align:right;font-family:var(--font-mono);" />
+      </div>
+      {% endfor %}
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
+      <div>
+        <label class="fs-12 muted" style="display:block;margin-bottom:6px">Expedition Slots</label>
+        <input type="number" id="inp-slots" value="7" min="1" max="9"
+               style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line-2);
+                      background:rgba(0,0,0,.25);color:var(--text-0);" />
+      </div>
+      <div>
+        <label class="fs-12 muted" style="display:block;margin-bottom:6px">Max Ships per Slot</label>
+        <input type="number" id="inp-max" value="15010000" min="1"
+               style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line-2);
+                      background:rgba(0,0,0,.25);color:var(--text-0);" />
+      </div>
+    </div>
+
+    <button class="btn" id="btn-optimize" style="min-width:180px">Calculate Optimal Fleet</button>
+  </div>
+
+  <div id="result" style="display:none">
+    <div class="card" style="padding:24px;margin-bottom:16px;border-color:var(--good-line)">
+      <h2 style="color:var(--good)">Recommended Fleet per Slot</h2>
+      <div id="slot-composition" style="margin-bottom:20px"></div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px">
+        <div class="kpi-card card">
+          <div class="kpi-label">Ships per Slot</div>
+          <div class="kpi-value" id="res-count">—</div>
+        </div>
+        <div class="kpi-card card">
+          <div class="kpi-label">Cargo Capacity</div>
+          <div class="kpi-value" id="res-cargo">—</div>
+        </div>
+        <div class="kpi-card card">
+          <div class="kpi-label">Attack Power</div>
+          <div class="kpi-value" id="res-attack">—</div>
+        </div>
+        <div class="kpi-card card">
+          <div class="kpi-label">Pirate Win Est.</div>
+          <div class="kpi-value" id="res-win" style="color:var(--good)">—</div>
+        </div>
+        <div class="kpi-card card">
+          <div class="kpi-label">Cargo Coverage</div>
+          <div class="kpi-value" id="res-coverage">—</div>
+        </div>
+        <div class="kpi-card card">
+          <div class="kpi-label">GT Freed (all slots)</div>
+          <div class="kpi-value" id="res-freed" style="color:var(--acc-1)">—</div>
+        </div>
+      </div>
+
+      <div id="warnings-wrap" style="display:none">
+        <h2 style="color:var(--warn)">Warnings</h2>
+        <ul id="warnings-list" style="color:var(--warn);font-size:13px;line-height:1.8;padding-left:18px"></ul>
+      </div>
+    </div>
+  </div>
+
+  <div id="opt-error" style="display:none" class="import-summary" style="border-color:var(--bad-line);background:var(--bad-bg);color:var(--bad)"></div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function(){
+  function fmtNum(n){
+    n = parseInt(n)||0;
+    if(n>=1e9) return (n/1e9).toFixed(1)+" Mrd";
+    if(n>=1e6) return (n/1e6).toFixed(1)+" M";
+    if(n>=1e3) return (n/1e3).toFixed(1)+" K";
+    return n.toLocaleString("de-DE");
+  }
+
+  document.getElementById("btn-optimize").addEventListener("click", async () => {
+    const ships = {};
+    document.querySelectorAll(".ship-input").forEach(inp => {
+      const v = parseInt(inp.value)||0;
+      if(v>0) ships[inp.dataset.ship] = v;
+    });
+    const slots = parseInt(document.getElementById("inp-slots").value)||7;
+    const maxPer = parseInt(document.getElementById("inp-max").value)||15010000;
+
+    const btn = document.getElementById("btn-optimize");
+    btn.textContent = "Calculating…";
+    btn.disabled = true;
+
+    try {
+      const token = localStorage.getItem("ogx_token")||"";
+      const res = await fetch("/optimizer/calculate", {
+        method:"POST",
+        headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
+        body: JSON.stringify({ships, slots, max_per_slot: maxPer})
+      });
+      const data = await res.json();
+      if(!data.ok){ throw new Error(data.error||"unknown"); }
+
+      // Slot composition table
+      const comp = data.slot_composition||{};
+      let html = '<table class="table" style="margin-top:0"><thead><tr><th>Ship</th><th style="text-align:right">Count</th><th style="text-align:right">Cargo</th></tr></thead><tbody>';
+      const CARGO = {
+        "Kleiner Transporter":5000,"Großer Transporter":25000,"Leichter Jäger":50,
+        "Schwerer Jäger":100,"Kreuzer":800,"Schlachtschiff":1500,"Schlachtkreuzer":750,
+        "Bomber":500,"Zerstörer":2000,"Todesstern":1000000,"Recycler":20000,"Spionagesonde":5
+      };
+      for(const [ship, cnt] of Object.entries(comp)){
+        const cargo = (CARGO[ship]||0)*cnt;
+        html += `<tr><td>${ship}</td><td style="text-align:right;font-weight:600">${cnt.toLocaleString("de-DE")}</td><td style="text-align:right;color:var(--acc-1)">${fmtNum(cargo)}</td></tr>`;
+      }
+      html += "</tbody></table>";
+      document.getElementById("slot-composition").innerHTML = html;
+
+      const a = data.analysis||{};
+      document.getElementById("res-count").textContent = (data.slot_count||0).toLocaleString("de-DE");
+      document.getElementById("res-cargo").textContent = fmtNum(data.slot_cargo||0);
+      document.getElementById("res-attack").textContent = fmtNum(data.slot_attack||0);
+      document.getElementById("res-win").textContent = (a.estimated_pirate_win_pct||0)+"%";
+      document.getElementById("res-coverage").textContent = (a.cargo_coverage_pct||0)+"%";
+      document.getElementById("res-freed").textContent = fmtNum(a.gt_freed_total||0);
+
+      const warnings = data.warnings||[];
+      const ww = document.getElementById("warnings-wrap");
+      const wl = document.getElementById("warnings-list");
+      if(warnings.length){
+        wl.innerHTML = warnings.map(w=>`<li>${w}</li>`).join("");
+        ww.style.display="block";
+      } else {
+        ww.style.display="none";
+      }
+
+      document.getElementById("result").style.display="block";
+      document.getElementById("opt-error").style.display="none";
+    } catch(e){
+      document.getElementById("opt-error").textContent = "Error: "+e.message;
+      document.getElementById("opt-error").style.display="block";
+    } finally {
+      btn.textContent="Calculate Optimal Fleet";
+      btn.disabled=false;
+    }
+  });
+})();
+</script>
+{% endblock %}

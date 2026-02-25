@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}Stats — OGX Expedition{% endblock %}
+{% block content %}
+
+<h1 style="margin-bottom:20px">Expedition Statistics</h1>
+
+{% if not stats %}
+<div class="empty-state">No data yet. <a href="/import" class="btn btn-sm" style="margin-left:8px">Import</a></div>
+{% else %}
+
+{# ── Summary KPIs ── #}
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:24px">
+  <div class="card kpi-card"><div class="kpi-label">Total</div><div class="kpi-value">{{ stats.total }}</div></div>
+  <div class="card kpi-card"><div class="kpi-label">Successful</div><div class="kpi-value" style="color:var(--good)">{{ stats.success_count }}</div></div>
+  <div class="card kpi-card"><div class="kpi-label">Loss Events</div><div class="kpi-value" style="color:var(--warn)">{{ stats.loss_event_count }}</div></div>
+  <div class="card kpi-card"><div class="kpi-label">Vanished</div><div class="kpi-value" style="color:var(--bad)">{{ stats.vanished_count }}</div></div>
+  <div class="card kpi-card"><div class="kpi-label">Failed/Empty</div><div class="kpi-value" style="color:var(--text-3)">{{ stats.failed_count }}</div></div>
+  <div class="card kpi-card"><div class="kpi-label">GT Lost Total</div><div class="kpi-value" style="color:var(--warn)">{{ stats.total_gt_lost | fmt_int }}</div></div>
+</div>
+
+{# ── Total Resources ── #}
+<div class="card" style="padding:20px;margin-bottom:20px">
+  <h2>Total Resources Gained</h2>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-top:8px">
+    <div>
+      <div class="fs-12 muted">Metal</div>
+      <div style="font-size:22px;font-weight:700;color:var(--text-0)">{{ stats.total_metal | fmt_num }}</div>
+    </div>
+    <div>
+      <div class="fs-12 muted">Crystal</div>
+      <div style="font-size:22px;font-weight:700;color:var(--acc-1)">{{ stats.total_crystal | fmt_num }}</div>
+    </div>
+    <div>
+      <div class="fs-12 muted">Deuterium</div>
+      <div style="font-size:22px;font-weight:700;color:#67e8f9">{{ stats.total_deut | fmt_num }}</div>
+    </div>
+    <div>
+      <div class="fs-12 muted">Dark Matter</div>
+      <div style="font-size:22px;font-weight:700;color:#c084fc">{{ stats.total_dm | fmt_num }}</div>
+    </div>
+    <div>
+      <div class="fs-12 muted">Combined</div>
+      <div style="font-size:22px;font-weight:700;color:var(--good)">{{ stats.total_resources | fmt_num }}</div>
+    </div>
+  </div>
+</div>
+
+{# ── By outcome type ── #}
+<div class="card" style="padding:20px;margin-bottom:20px">
+  <h2>Breakdown by Outcome Type</h2>
+  <div style="overflow-x:auto">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th style="text-align:right">Count</th>
+          <th style="text-align:right">Metal</th>
+          <th style="text-align:right">Crystal</th>
+          <th style="text-align:right">Deut</th>
+          <th style="text-align:right">DM</th>
+          <th style="text-align:right">GT Lost</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t, d in by_type | dictsort(by="value", attribute="count", reverse=true) %}
+        <tr>
+          <td><span class="outcome-badge outcome-{{ t }}">{{ t | replace("_"," ") }}</span></td>
+          <td style="text-align:right;font-weight:600">{{ d.count }}</td>
+          <td style="text-align:right" class="mono fs-12">{{ d.metal | fmt_num }}</td>
+          <td style="text-align:right" class="mono fs-12">{{ d.crystal | fmt_num }}</td>
+          <td style="text-align:right" class="mono fs-12">{{ d.deut | fmt_num }}</td>
+          <td style="text-align:right;color:#c084fc" class="mono fs-12">{{ d.dm | fmt_num if d.dm else "—" }}</td>
+          <td style="text-align:right;color:var(--warn)" class="mono fs-12">{{ d.gt_lost | fmt_int if d.gt_lost else "—" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{# ── Ships gained / lost ── #}
+<div class="row gap" style="align-items:flex-start;flex-wrap:wrap;margin-bottom:24px">
+  {% if ships_gained %}
+  <div class="card" style="flex:1;min-width:260px;padding:20px">
+    <h2>Ships Gained</h2>
+    <table class="table" style="margin-top:0">
+      <tbody>
+        {% for ship, qty in ships_gained.items() %}
+        <tr>
+          <td>{{ ship }}</td>
+          <td style="text-align:right;color:var(--good);font-weight:600">+{{ qty | fmt_int }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  {% if ships_lost %}
+  <div class="card" style="flex:1;min-width:260px;padding:20px">
+    <h2>Ships Lost</h2>
+    <table class="table" style="margin-top:0">
+      <tbody>
+        {% for ship, qty in ships_lost.items() %}
+        <tr>
+          <td>{{ ship }}</td>
+          <td style="text-align:right;color:var(--bad);font-weight:600">-{{ qty | fmt_int }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+
+{% endif %}
+{% endblock %}

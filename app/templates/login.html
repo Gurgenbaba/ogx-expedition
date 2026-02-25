@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Login — OGX Expedition{% endblock %}
+{% block content %}
+<div style="max-width:420px;margin:80px auto;">
+  <div class="card" style="padding:28px;">
+    <h1 style="margin-bottom:6px">OGX Expedition</h1>
+    <p class="muted" style="margin-bottom:24px;font-size:13px">Login with your OGX Oracle account to continue.</p>
+    <div class="field" style="margin-bottom:12px">
+      <label class="fs-12 muted" style="display:block;margin-bottom:6px">Username</label>
+      <input type="text" id="inp-user" placeholder="username" autocomplete="username"
+             style="width:100%;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.10);background:rgba(0,0,0,.25);color:rgba(255,255,255,.92);" />
+    </div>
+    <div class="field" style="margin-bottom:20px">
+      <label class="fs-12 muted" style="display:block;margin-bottom:6px">Password</label>
+      <input type="password" id="inp-pass" placeholder="password" autocomplete="current-password"
+             style="width:100%;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.10);background:rgba(0,0,0,.25);color:rgba(255,255,255,.92);" />
+    </div>
+    <button class="btn" id="btn-do-login" style="width:100%">Login</button>
+    <div id="auth-error" class="auth-error" style="display:none;margin-top:12px"></div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}<script src="/static/auth.js"></script>{% endblock %}

@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Import — OGX Expedition{% endblock %}
+{% block content %}
+
+<div style="max-width:860px;margin:0 auto">
+  <h1 style="margin-bottom:6px">Import Expeditions</h1>
+  <p class="muted" style="font-size:13px;margin-bottom:24px">
+    Copy all expedition messages from OGame → Paste below → Import.
+    Duplicates are automatically skipped.
+  </p>
+
+  {% set imported = request.query_params.get("imported") %}
+  {% if imported is not none %}
+  <div class="import-summary" style="margin-bottom:20px">
+    ✅ <strong>{{ imported }}</strong> new &nbsp;·&nbsp;
+    {{ request.query_params.get("duplicates","0") }} duplicates &nbsp;·&nbsp;
+    {{ request.query_params.get("failed","0") }} failed to parse
+  </div>
+  {% endif %}
+
+  {% set error = request.query_params.get("error") %}
+  {% if error %}
+  <div class="import-summary" style="margin-bottom:20px;border-color:var(--bad-line);background:var(--bad-bg);color:var(--bad)">
+    ⚠️ {{ error | replace("_"," ") }}
+  </div>
+  {% endif %}
+
+  <div class="card" style="padding:24px">
+    <h2>How to copy expedition messages</h2>
+    <ol style="color:var(--text-2);font-size:13px;line-height:2;margin-bottom:20px;padding-left:18px">
+      <li>Open OGame → Messages → Fleet Command → Expedition Reports</li>
+      <li>Select all messages on the page (<kbd>Ctrl+A</kbd> or manually)</li>
+      <li>Copy (<kbd>Ctrl+C</kbd>)</li>
+      <li>Paste into the field below</li>
+      <li>Click Import — done!</li>
+    </ol>
+
+    <form method="post" action="/import">
+      <div style="margin-bottom:16px">
+        <label class="fs-12 muted" style="display:block;margin-bottom:8px">
+          Paste expedition messages here
+        </label>
+        <textarea
+          name="raw_text"
+          rows="16"
+          placeholder="25.02 02:14:33	Flottenkommando	Expeditionsbericht&#10;Ionensturm EXPEDITION #179930&#10;..."
+          style="width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--line-2);
+                 background:rgba(0,0,0,.3);color:var(--text-0);font-family:var(--font-mono);
+                 font-size:12px;line-height:1.6;resize:vertical;"
+          required
+        ></textarea>
+      </div>
+      <div class="row gap">
+        <button type="submit" class="btn">Import Expeditions</button>
+        <span class="muted fs-12">Max 500 expeditions per import · Duplicates skipped automatically</span>
+      </div>
+    </form>
+  </div>
+
+  <div class="card" style="padding:20px;margin-top:16px">
+    <h2>Supported Expedition Types</h2>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px">
+      <span class="outcome-badge outcome-success_res">Resources</span>
+      <span class="outcome-badge outcome-success_ships">Ships</span>
+      <span class="outcome-badge outcome-success_mix">Resources + Ships</span>
+      <span class="outcome-badge outcome-success_dm">Dark Matter</span>
+      <span class="outcome-badge outcome-success_mix_dm">Resources + DM</span>
+      <span class="outcome-badge outcome-success_full">Full (Res + Ships + DM)</span>
+      <span class="outcome-badge outcome-pirates_win">Pirates (Won)</span>
+      <span class="outcome-badge outcome-pirates_loss">Pirates (Lost)</span>
+      <span class="outcome-badge outcome-storm">Ion Storm</span>
+      <span class="outcome-badge outcome-contact_lost">Contact Lost</span>
+      <span class="outcome-badge outcome-gravity">Gravity Anomaly</span>
+      <span class="outcome-badge outcome-vanished">Fleet Vanished</span>
+      <span class="outcome-badge outcome-failed">Failed</span>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

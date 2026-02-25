@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — OGX Expedition{% endblock %}
+{% block content %}
+
+<div class="row between" style="margin-bottom:20px">
+  <div>
+    <h1>Expedition Dashboard</h1>
+    <p class="muted" style="font-size:13px;margin-top:4px">{{ total }} expeditions tracked</p>
+  </div>
+  <a href="/import" class="btn">+ Import</a>
+</div>
+
+{% if not stats %}
+<div class="empty-state">
+  <p style="margin-bottom:12px">No expeditions imported yet.</p>
+  <a href="/import" class="btn">Import your first expeditions</a>
+</div>
+{% else %}
+
+{# ── KPI Row ── #}
+<div class="kpi-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:24px">
+
+  <div class="card kpi-card">
+    <div class="kpi-label">Total Expeditions</div>
+    <div class="kpi-value">{{ stats.total }}</div>
+  </div>
+  <div class="card kpi-card">
+    <div class="kpi-label">Success Rate</div>
+    <div class="kpi-value" style="color:var(--good)">{{ stats.success_rate_pct }}%</div>
+  </div>
+  <div class="card kpi-card">
+    <div class="kpi-label">Vanish Rate</div>
+    <div class="kpi-value" style="color:var(--bad)">{{ stats.vanish_rate_pct }}%</div>
+  </div>
+  <div class="card kpi-card">
+    <div class="kpi-label">Total Metal</div>
+    <div class="kpi-value">{{ stats.total_metal | fmt_num }}</div>
+  </div>
+  <div class="card kpi-card">
+    <div class="kpi-label">Total Crystal</div>
+    <div class="kpi-value">{{ stats.total_crystal | fmt_num }}</div>
+  </div>
+  <div class="card kpi-card">
+    <div class="kpi-label">Total Deuterium</div>
+    <div class="kpi-value">{{ stats.total_deut | fmt_num }}</div>
+  </div>
+  <div class="card kpi-card">
+    <div class="kpi-label">Total Dark Matter</div>
+    <div class="kpi-value" style="color:#c084fc">{{ stats.total_dm | fmt_num }}</div>
+  </div>
+  <div class="card kpi-card">
+    <div class="kpi-label">GT Lost (total)</div>
+    <div class="kpi-value" style="color:var(--warn)">{{ stats.total_gt_lost | fmt_int }}</div>
+  </div>
+
+</div>
+
+{# ── Outcome breakdown ── #}
+<div class="row gap" style="align-items:flex-start;flex-wrap:wrap;margin-bottom:24px">
+  <div class="card" style="flex:1;min-width:280px;padding:20px">
+    <h2>Outcome Breakdown</h2>
+    <div id="outcome-chart-wrap">
+      <canvas id="outcomeChart" height="220"></canvas>
+    </div>
+  </div>
+
+  <div class="card" style="flex:1;min-width:280px;padding:20px">
+    <h2>Avg per Successful Run</h2>
+    <table class="table" style="margin-top:0">
+      <tbody>
+        <tr><td class="muted">Metal</td><td style="text-align:right;font-weight:600">{{ stats.avg_metal | fmt_num }}</td></tr>
+        <tr><td class="muted">Crystal</td><td style="text-align:right;font-weight:600">{{ stats.avg_crystal | fmt_num }}</td></tr>
+        <tr><td class="muted">Deuterium</td><td style="text-align:right;font-weight:600">{{ stats.avg_deut | fmt_num }}</td></tr>
+        <tr><td class="muted">Total</td>
+            <td style="text-align:right;font-weight:700;color:var(--acc-1)">{{ stats.avg_total_res | fmt_num }}</td></tr>
+      </tbody>
+    </table>
+    <div style="margin-top:16px">
+      <a href="/optimizer" class="btn" style="width:100%;text-align:center">Fleet Optimizer →</a>
+    </div>
+  </div>
+</div>
+
+{# ── Recent expeditions ── #}
+<div class="card" style="padding:20px;margin-bottom:24px">
+  <h2>Recent Expeditions (last 50 with resources)</h2>
+  <div style="overflow-x:auto">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Date</th>
+          <th>Type</th>
+          <th>Metal</th>
+          <th>Crystal</th>
+          <th>Deuterium</th>
+          <th>Dark Matter</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in recent %}
+        <tr>
+          <td class="mono dim">{{ e.exp_number or "—" }}</td>
+          <td class="mono fs-12">{{ e.returned_at.strftime("%d.%m %H:%M") if e.returned_at else "—" }}</td>
+          <td><span class="outcome-badge outcome-{{ e.outcome_type }}">{{ e.outcome_type | replace("_"," ") }}</span></td>
+          <td class="mono">{{ e.metal | fmt_num }}</td>
+          <td class="mono">{{ e.crystal | fmt_num }}</td>
+          <td class="mono">{{ e.deuterium | fmt_num }}</td>
+          <td class="mono" style="color:#c084fc">{{ e.dark_matter | fmt_num if e.dark_matter else "—" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+(function(){
+  const counts = {{ outcome_counts | tojson }};
+  if (!counts || !Object.keys(counts).length) return;
+
+  const COLORS = {
+    success_res:    "#34d399",
+    success_ships:  "#6ee7b7",
+    success_mix:    "#10b981",
+    success_dm:     "#c084fc",
+    success_mix_dm: "#a855f7",
+    success_full:   "#7c3aed",
+    pirates_win:    "#f59e0b",
+    pirates_loss:   "#ef4444",
+    storm:          "#fb923c",
+    contact_lost:   "#f97316",
+    gravity:        "#fbbf24",
+    vanished:       "#fb7185",
+    failed:         "#475569",
+  };
+
+  const labels = Object.keys(counts).map(k => k.replace(/_/g," "));
+  const data   = Object.values(counts);
+  const colors = Object.keys(counts).map(k => COLORS[k] || "#64748b");
+
+  new Chart(document.getElementById("outcomeChart"), {
+    type: "doughnut",
+    data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 1, borderColor: "rgba(0,0,0,.3)" }] },
+    options: {
+      plugins: {
+        legend: { labels: { color: "rgba(200,225,255,.78)", font: { size: 12 } } }
+      },
+      cutout: "60%",
+    }
+  });
+})();
+</script>
+{% endblock %}
