@@ -593,7 +593,7 @@ async def outcomes_page(request: Request):
         outcomes: dict = defaultdict(lambda: {
             "count": 0, "metal": 0, "crystal": 0, "deut": 0, "dm": 0,
             "ships_lost": {}, "ships_gained": {},
-        }, db, u)
+        })
 
         # Weekly timeline: {week: {outcome_type: count}}
         weekly: dict = defaultdict(lambda: defaultdict(int))
