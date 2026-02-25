@@ -5,8 +5,8 @@
 <div style="max-width:860px;margin:0 auto">
   <h1 style="margin-bottom:6px">Fleet Optimizer</h1>
   <p class="muted" style="font-size:13px;margin-bottom:24px">
-    Enter ships <strong>per expedition slot</strong> (how many you send per expedition).
-    The optimizer calculates Safe / Balanced / Aggressive fleet mixes based on your historical loot data.
+    Enter your <strong>total fleet</strong> (all ships you own). The optimizer divides by your slot count
+    and calculates Safe / Balanced / Aggressive mixes based on your historical loot data.
   </p>
 
   {% if stats and stats.avg_total_res %}
@@ -21,7 +21,10 @@
 
   <!-- Fleet input -->
   <div class="card" style="padding:24px;margin-bottom:20px">
-    <h2 style="margin-bottom:16px">Ships per Slot <span class="muted fs-12" style="font-weight:400">(what you currently send per expedition)</span></h2>
+    <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:16px">
+      <h2 style="margin:0">Total Fleet <span class="muted fs-12" style="font-weight:400">(all ships you own)</span></h2>
+      <span class="muted fs-12" id="per-slot-hint" style="color:var(--acc-1)"></span>
+    </div>
 
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-bottom:20px">
       {% for ship in ship_names %}
@@ -100,7 +103,7 @@
 
     <!-- Current setup comparison -->
     <div class="card" style="padding:16px 20px;margin-bottom:16px;border-color:rgba(255,255,255,.06)">
-      <div class="fs-12 muted" style="margin-bottom:10px;letter-spacing:.06em;text-transform:uppercase">Your Current Setup</div>
+      <div class="fs-12 muted" style="margin-bottom:10px;letter-spacing:.06em;text-transform:uppercase">Your Current Setup <span style="font-weight:400;text-transform:none;letter-spacing:0">(per slot, based on total ÷ slots)</span></div>
       <div id="current-summary"></div>
     </div>
 
@@ -212,14 +215,29 @@
     });
   });
 
+  // Live per-slot hint
+  function updatePerSlotHint() {
+    const slots = parseInt(document.getElementById("inp-slots").value)||7;
+    let total = 0;
+    document.querySelectorAll(".ship-input").forEach(inp => { total += parseInt(inp.value)||0; });
+    const hint = document.getElementById("per-slot-hint");
+    if(total > 0) hint.textContent = `÷ ${slots} slots = ${Math.floor(total/slots).toLocaleString("de-DE")} ships/slot`;
+    else hint.textContent = "";
+  }
+  document.querySelectorAll(".ship-input").forEach(inp => inp.addEventListener("input", updatePerSlotHint));
+  document.getElementById("inp-slots").addEventListener("input", updatePerSlotHint);
+
   document.getElementById("btn-optimize").addEventListener("click", async () => {
-    const ships = {};
-    document.querySelectorAll(".ship-input").forEach(inp => {
-      const v = parseInt(inp.value)||0;
-      if(v>0) ships[inp.dataset.ship] = v;
-    });
     const slots   = parseInt(document.getElementById("inp-slots").value)||7;
     const maxPer  = parseInt(document.getElementById("inp-max").value)||15010000;
+
+    // Divide total fleet by slots to get per-slot availability
+    const ships = {};
+    document.querySelectorAll(".ship-input").forEach(inp => {
+      const total = parseInt(inp.value)||0;
+      const perSlot = Math.floor(total / slots);
+      if(perSlot > 0) ships[inp.dataset.ship] = perSlot;
+    });
 
     const btn = document.getElementById("btn-optimize");
     btn.textContent = "Calculating…";

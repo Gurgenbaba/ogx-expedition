@@ -61,7 +61,7 @@ class FleetSlot:
 
 @dataclass
 class OptimizerInput:
-    available_ships: dict[str, int]   # ships available PER SLOT
+    available_ships: dict[str, int]   # TOTAL fleet owned (will be divided by slots)
     slots: int = 7
     max_ships_per_slot: int = 15_010_000
     avg_loot_metal: int = 163_000_000_000
@@ -141,9 +141,15 @@ def optimize_fleet(inp: OptimizerInput) -> OptimizerResult:
 
     cap = inp.max_ships_per_slot
 
-    # --- Current setup (what user entered, capped to max_ships_per_slot) ---
-    # Fill all cargo ships first, then combat, up to cap
-    current_slot = _build_slot(inp.available_ships, cap, needed_cargo, cap)
+    # Divide total fleet by slots — all 7 fly simultaneously
+    per_slot: dict[str, int] = {
+        ship: count // max(inp.slots, 1)
+        for ship, count in inp.available_ships.items()
+        if count > 0
+    }
+
+    # --- Current setup (total fleet ÷ slots, capped to max_ships_per_slot) ---
+    current_slot = _build_slot(per_slot, cap, needed_cargo, cap)
 
     modes = {}
     for mode in ("safe", "balanced", "aggressive"):
@@ -162,7 +168,7 @@ def optimize_fleet(inp: OptimizerInput) -> OptimizerResult:
             cargo_target  = int(needed_cargo * 0.50)
             combat_budget = cap
 
-        slot = _build_slot(inp.available_ships, cap, cargo_target, combat_budget)
+        slot = _build_slot(per_slot, cap, cargo_target, combat_budget)
         coverage = _cargo_coverage(slot, needed_cargo)
         win      = _win_estimate(slot.total_attack)
         deficit  = max(0, needed_cargo - slot.total_cargo)
@@ -185,7 +191,7 @@ def optimize_fleet(inp: OptimizerInput) -> OptimizerResult:
 
         # GT freed vs safe mode (how many GT you could reduce)
         safe_gt = sum(
-            v for k, v in _build_slot(inp.available_ships, cap, needed_cargo, 0).ships.items()
+            v for k, v in _build_slot(per_slot, cap, needed_cargo, 0).ships.items()
             if k == "Großer Transporter"
         )
         mode_gt = slot.ships.get("Großer Transporter", 0)
