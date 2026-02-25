@@ -62,7 +62,7 @@
         </tr>
       </thead>
       <tbody>
-        {% for t, d in by_type | dictsort(by="value", attribute="count", reverse=true) %}
+        {% for t, d in by_type.items() | sort(attribute="1.count", reverse=true) %}
         <tr>
           <td><span class="outcome-badge outcome-{{ t }}">{{ t | replace("_"," ") }}</span></td>
           <td style="text-align:right;font-weight:600">{{ d.count }}</td>
