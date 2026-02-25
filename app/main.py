@@ -1,4 +1,4 @@
-# app/main.py
+﻿# app/main.py
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
@@ -96,7 +96,7 @@ async def healthz():
 
 
 # ---------------------------------------------------------------------------
-# Auth (mirrors ogx-oraclev2 — reads/writes shared users table)
+# Auth (mirrors ogx-oraclev2 â€” reads/writes shared users table)
 # ---------------------------------------------------------------------------
 @app.post("/auth/login")
 async def auth_login(payload: dict = Body(...)):
@@ -205,6 +205,9 @@ async def do_import(request: Request, raw_text: str = Form(...)):
         if not parsed:
             return RedirectResponse(url="/import?error=no_expeditions_found", status_code=303)
 
+        # Cache user_id before rollbacks expire the ORM object
+        uid = int(u.id)
+
         count_new = 0
         count_dup = 0
         count_fail = 0
@@ -215,7 +218,7 @@ async def do_import(request: Request, raw_text: str = Form(...)):
                 continue
 
             exp = Expedition(
-                user_id=u.id,
+                user_id=uid,
                 exp_number=p.exp_number,
                 returned_at=p.returned_at,
                 outcome_type=p.outcome_type,
@@ -234,16 +237,16 @@ async def do_import(request: Request, raw_text: str = Form(...)):
                 dedup_key=p.dedup_key,
             )
             try:
-                db.add(exp)
-                await db.flush()
+                async with db.begin_nested():
+                    db.add(exp)
+                    await db.flush()
                 count_new += 1
             except IntegrityError:
-                await db.rollback()
                 count_dup += 1
                 continue
 
         imp = ExpeditionImport(
-            user_id=u.id,
+            user_id=uid,
             count_parsed=len(parsed),
             count_new=count_new,
             count_duplicate=count_dup,
@@ -283,7 +286,7 @@ async def stats_page(request: Request):
             by_type[t]["deut"] += e.deuterium
             by_type[t]["dm"] += e.dark_matter
             if e.ships_delta:
-                by_type[t]["gt_lost"] += abs(e.ships_delta.get("Großer Transporter", 0))
+                by_type[t]["gt_lost"] += abs(e.ships_delta.get("GroÃŸer Transporter", 0))
 
         # Ships gained (across all expeditions)
         ships_gained: dict[str, int] = {}
@@ -376,3 +379,4 @@ async def delete_all_expeditions(request: Request):
         await db.execute(delete(Expedition).where(Expedition.user_id == u.id))
         await db.commit()
         return {"ok": True}
+
