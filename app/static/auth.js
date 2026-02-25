@@ -1,21 +1,25 @@
-// app/static/auth.js
+﻿// app/static/auth.js
 (function () {
   "use strict";
 
   const TOKEN_KEY = "ogx_token";
+  const COOKIE_NAME = "ogx_token";
 
   function getToken() { try { return localStorage.getItem(TOKEN_KEY) || ""; } catch { return ""; } }
-  function setToken(t) { try { localStorage.setItem(TOKEN_KEY, t); } catch {} }
-  function clearToken() { try { localStorage.removeItem(TOKEN_KEY); } catch {} }
+  function setToken(t) {
+    try { localStorage.setItem(TOKEN_KEY, t); } catch {}
+    document.cookie = `${COOKIE_NAME}=${t}; path=/; SameSite=Strict; Max-Age=86400`;
+  }
+  function clearToken() {
+    try { localStorage.removeItem(TOKEN_KEY); } catch {}
+    document.cookie = `${COOKIE_NAME}=; path=/; SameSite=Strict; Max-Age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+  }
 
-  // Attach token to every fetch (monkey-patch)
   const _origFetch = window.fetch;
   window.fetch = function (url, opts) {
     opts = opts || {};
     const tok = getToken();
-    if (tok) {
-      opts.headers = Object.assign({ Authorization: "Bearer " + tok }, opts.headers || {});
-    }
+    if (tok) opts.headers = Object.assign({ Authorization: "Bearer " + tok }, opts.headers || {});
     return _origFetch.call(this, url, opts);
   };
 
@@ -28,9 +32,9 @@
     return res.json();
   }
 
-  async function doLogout() {
+  function doLogout() {
     clearToken();
-    window.location.reload();
+    window.location.href = "/";
   }
 
   function showError(msg) {
@@ -45,7 +49,6 @@
     if (el) el.style.display = "none";
   }
 
-  // Modal open/close
   const modal = document.getElementById("auth-modal");
   const backdrop = document.getElementById("auth-backdrop");
   const btnOpen = document.getElementById("btn-login-open");
@@ -57,7 +60,6 @@
   if (backdrop) backdrop.addEventListener("click", () => { if (modal) modal.style.display = "none"; });
   if (btnLogout) btnLogout.addEventListener("click", doLogout);
 
-  // Login submit
   async function handleLogin() {
     const u = (document.getElementById("inp-user") || {}).value || "";
     const p = (document.getElementById("inp-pass") || {}).value || "";
@@ -66,7 +68,7 @@
     const data = await doLogin(u.trim().toLowerCase(), p);
     if (data.ok) {
       setToken(data.token);
-      window.location.reload();
+      window.location.href = "/";
     } else {
       showError(data.error || "Login failed.");
     }
@@ -75,15 +77,11 @@
   const btnDoLogin = document.getElementById("btn-do-login");
   if (btnDoLogin) btnDoLogin.addEventListener("click", handleLogin);
 
-  // Enter key
   ["inp-user", "inp-pass"].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener("keydown", e => { if (e.key === "Enter") handleLogin(); });
   });
 
-  // On load: send token in cookie for server-side template rendering
   const tok = getToken();
-  if (tok) {
-    document.cookie = `ogx_token=${tok}; path=/; SameSite=Strict; Max-Age=86400`;
-  }
+  if (tok) document.cookie = `${COOKIE_NAME}=${tok}; path=/; SameSite=Strict; Max-Age=86400`;
 })();
