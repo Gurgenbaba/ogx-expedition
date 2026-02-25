@@ -394,6 +394,7 @@ async def optimizer_calculate(request: Request, payload: dict = Body(...)):
             "balanced":   {**slot_to_dict(a["balanced"]["slot"]),   **{k:v for k,v in a["balanced"].items()   if k!="slot"}},
             "aggressive": {**slot_to_dict(a["aggressive"]["slot"]), **{k:v for k,v in a["aggressive"].items() if k!="slot"}},
             "warnings": result.warnings,
+            "suggestions": a.get("suggestions", []),
         }
 
 

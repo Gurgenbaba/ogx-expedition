@@ -141,14 +141,14 @@ def optimize_fleet(inp: OptimizerInput) -> OptimizerResult:
 
     cap = inp.max_ships_per_slot
 
-    # Divide total fleet by slots — all 7 fly simultaneously
+    # Use ships exactly as entered (per slot)
     per_slot: dict[str, int] = {
-        ship: count // max(inp.slots, 1)
+        ship: min(count, cap)
         for ship, count in inp.available_ships.items()
         if count > 0
     }
 
-    # --- Current setup (total fleet ÷ slots, capped to max_ships_per_slot) ---
+    # --- Current setup (what user sends per slot) ---
     current_slot = _build_slot(per_slot, cap, needed_cargo, cap)
 
     modes = {}
@@ -218,6 +218,45 @@ def optimize_fleet(inp: OptimizerInput) -> OptimizerResult:
         },
         **modes,
     }
+
+    # --- "What to add" recommendations ---
+    # Based on balanced mode: what ships would improve coverage or combat?
+    bal_slot  = modes["balanced"]["slot"]
+    bal_coverage = modes["balanced"]["cargo_coverage"]
+    bal_win      = modes["balanced"]["win_est"]
+
+    suggestions: list[dict] = []
+
+    # Cargo gap
+    cargo_gap = max(0, int(needed_cargo * 0.80) - bal_slot.total_cargo)
+    if cargo_gap > 0:
+        for ship in ["Recycler", "Großer Transporter", "Kleiner Transporter"]:
+            cargo_per = SHIP_STATS[ship]["cargo"]
+            needed_ships = -(-cargo_gap // cargo_per)  # ceiling
+            suggestions.append({
+                "ship": ship,
+                "count": needed_ships,
+                "reason": f"adds {cargo_gap/1e9:.0f} Mrd cargo to reach 80% coverage",
+                "type": "cargo",
+            })
+            break  # suggest only best cargo ship
+
+    # Combat gap
+    if bal_win < 70:
+        attack_needed = max(0, int((70 - 30) / 25 * 20_000_000) - bal_slot.total_attack)
+        if attack_needed > 0:
+            for ship in ["Zerstörer", "Schlachtschiff", "Schlachtkreuzer"]:
+                attack_per = SHIP_STATS[ship]["attack"]
+                needed_ships = -(-attack_needed // attack_per)
+                suggestions.append({
+                    "ship": ship,
+                    "count": needed_ships,
+                    "reason": f"boosts pirate win chance to ~70%",
+                    "type": "combat",
+                })
+                break
+
+    analysis["suggestions"] = suggestions
 
     return OptimizerResult(
         recommended_slots=[modes["balanced"]["slot"]] * inp.slots,
