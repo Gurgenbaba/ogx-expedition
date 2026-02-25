@@ -491,6 +491,78 @@ async def delete_all_expeditions(request: Request):
         return {"ok": True}
 
 
+@app.get("/outcomes", response_class=HTMLResponse)
+async def outcomes_page(request: Request):
+    async with AsyncSessionLocal() as db:
+        u, _ = await require_jwt_user(request, db)
+        if not u:
+            return RedirectResponse(url="/", status_code=303)
+
+        exps = (await db.execute(
+            select(Expedition)
+            .where(Expedition.user_id == u.id)
+            .order_by(Expedition.returned_at.asc())
+        )).scalars().all()
+
+        from collections import defaultdict
+        import datetime
+
+        total = len(exps)
+
+        # Per outcome: count, resources, ships_lost, ships_gained, dm
+        outcomes: dict = defaultdict(lambda: {
+            "count": 0, "metal": 0, "crystal": 0, "deut": 0, "dm": 0,
+            "ships_lost": {}, "ships_gained": {},
+        })
+
+        # Weekly timeline: {week: {outcome_type: count}}
+        weekly: dict = defaultdict(lambda: defaultdict(int))
+
+        for e in exps:
+            o = e.outcome_type
+            outcomes[o]["count"] += 1
+            outcomes[o]["metal"]   += e.metal
+            outcomes[o]["crystal"] += e.crystal
+            outcomes[o]["deut"]    += e.deuterium
+            outcomes[o]["dm"]      += e.dark_matter
+
+            if e.ships_delta:
+                for ship, qty in e.ships_delta.items():
+                    if qty < 0:
+                        d = outcomes[o]["ships_lost"]
+                        d[ship] = d.get(ship, 0) + abs(qty)
+                    elif qty > 0:
+                        d = outcomes[o]["ships_gained"]
+                        d[ship] = d.get(ship, 0) + qty
+
+            if e.returned_at:
+                iso = e.returned_at.isocalendar()
+                wk = f"{iso[0]}-W{iso[1]:02d}"
+                weekly[wk][o] += 1
+
+        # Last 16 weeks
+        today = datetime.date.today()
+        timeline = []
+        all_outcome_types = list(outcomes.keys())
+        for i in range(15, -1, -1):
+            d = today - datetime.timedelta(weeks=i)
+            iso = d.isocalendar()
+            wk = f"{iso[0]}-W{iso[1]:02d}"
+            entry = {"week": wk}
+            for ot in all_outcome_types:
+                entry[ot] = weekly[wk].get(ot, 0)
+            timeline.append(entry)
+
+        return _template(request, "outcomes.html", {
+            "user": u,
+            "active_nav": "outcomes",
+            "total": total,
+            "outcomes": dict(sorted(outcomes.items(), key=lambda x: -x[1]["count"])),
+            "timeline": timeline,
+            "outcome_types": all_outcome_types,
+        })
+
+
 @app.get("/codes", response_class=HTMLResponse)
 async def codes_page(request: Request):
     async with AsyncSessionLocal() as db:
