@@ -2,52 +2,48 @@
 """
 Fleet Optimizer for OGX Expeditions.
 
-Based on OGame mechanics:
-- Expedition cargo capacity = sum of cargo capacity of sent ships
-- The game CAPS loot at: base_loot × (cargo_capacity / needed_capacity)
-  where needed_capacity ≈ 3× the loot found
-- Sending more than needed cargo = wasted slots
-- Combat ships protect against pirate losses
-- More fleet points = higher chance of finding better loot / more ships
+Modes:
+  safe       - maximize cargo coverage, minimize losses
+  balanced   - good cargo + solid combat protection
+  aggressive - lean cargo, maximum combat ships (high loot potential)
 
-Key insight from your data:
-- You send 15.010.000 GT per slot (cargo: 25.000 each = 375,250,000,000 capacity)
-- Your average resource find: ~326 Mrd total resources
-- You are HEAVILY over-capac — you could reduce GT and add combat ships
-  without losing a single resource
-
-Ship stats (OGame standard):
+OGame expedition mechanics:
+  - Cargo cap: loot is capped at your cargo capacity
+  - More fleet points = higher loot tier (more resources/ships found)
+  - Combat ships = higher chance to beat pirates (no GT losses)
+  - GT are the weakest ships — pure cargo, zero combat value
 """
 from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Optional
 
 SHIP_STATS: dict[str, dict] = {
-    "Kleiner Transporter":  {"cargo": 5_000,    "cost_metal": 2_000,   "cost_crystal": 2_000,  "attack": 5,        "shield": 10,   "hull": 400},
-    "Großer Transporter":   {"cargo": 25_000,   "cost_metal": 6_000,   "cost_crystal": 6_000,  "attack": 5,        "shield": 25,   "hull": 1_200},
-    "Leichter Jäger":       {"cargo": 50,       "cost_metal": 3_000,   "cost_crystal": 1_000,  "attack": 50,       "shield": 10,   "hull": 400},
-    "Schwerer Jäger":       {"cargo": 100,      "cost_metal": 6_000,   "cost_crystal": 4_000,  "attack": 150,      "shield": 25,   "hull": 1_000},
-    "Kreuzer":              {"cargo": 800,      "cost_metal": 20_000,  "cost_crystal": 7_000,  "attack": 400,      "shield": 50,   "hull": 2_700},
-    "Schlachtschiff":       {"cargo": 1_500,    "cost_metal": 45_000,  "cost_crystal": 15_000, "attack": 1_000,    "shield": 200,  "hull": 6_000},
-    "Schlachtkreuzer":      {"cargo": 750,      "cost_metal": 30_000,  "cost_crystal": 40_000, "attack": 700,      "shield": 400,  "hull": 7_000},
-    "Bomber":               {"cargo": 500,      "cost_metal": 50_000,  "cost_crystal": 25_000, "attack": 1_000,    "shield": 500,  "hull": 7_500},
-    "Zerstörer":            {"cargo": 2_000,    "cost_metal": 60_000,  "cost_crystal": 50_000, "attack": 2_000,    "shield": 500,  "hull": 11_000},
-    "Todesstern":           {"cargo": 1_000_000,"cost_metal": 5_000_000,"cost_crystal":4_000_000,"attack":200_000, "shield":50_000,"hull":900_000},
-    "Recycler":             {"cargo": 20_000,   "cost_metal": 10_000,  "cost_crystal": 6_000,  "attack": 1,        "shield": 10,   "hull": 1_600},
-    "Spionagesonde":        {"cargo": 5,        "cost_metal": 0,       "cost_crystal": 1_000,  "attack": 0,        "shield": 0,    "hull": 100},
+    "Kleiner Transporter":  {"cargo": 5_000,     "attack": 5,       "points": 4,      "type": "cargo"},
+    "Großer Transporter":   {"cargo": 25_000,    "attack": 5,       "points": 12,     "type": "cargo"},
+    "Leichter Jäger":       {"cargo": 50,        "attack": 50,      "points": 4,      "type": "combat"},
+    "Schwerer Jäger":       {"cargo": 100,       "attack": 150,     "points": 10,     "type": "combat"},
+    "Kreuzer":              {"cargo": 800,       "attack": 400,     "points": 27,     "type": "combat"},
+    "Schlachtschiff":       {"cargo": 1_500,     "attack": 1_000,   "points": 60,     "type": "combat"},
+    "Schlachtkreuzer":      {"cargo": 750,       "attack": 700,     "points": 70,     "type": "combat"},
+    "Bomber":               {"cargo": 500,       "attack": 1_000,   "points": 75,     "type": "combat"},
+    "Zerstörer":            {"cargo": 2_000,     "attack": 2_000,   "points": 110,    "type": "combat"},
+    "Todesstern":           {"cargo": 1_000_000, "attack": 200_000, "points": 9_000,  "type": "combat"},
+    "Recycler":             {"cargo": 20_000,    "attack": 1,       "points": 16,     "type": "cargo"},
+    "Spionagesonde":        {"cargo": 5,         "attack": 0,       "points": 1,      "type": "support"},
 }
+
+# Combat ships ordered by attack/slot efficiency
+COMBAT_PRIORITY = ["Zerstörer", "Schlachtschiff", "Bomber", "Schlachtkreuzer", "Kreuzer", "Schwerer Jäger", "Leichter Jäger"]
+CARGO_PRIORITY  = ["Großer Transporter", "Recycler", "Kleiner Transporter"]
 
 
 @dataclass
 class FleetSlot:
-    ships: dict[str, int] = field(default_factory=dict)  # ship_name → count
+    ships: dict[str, int] = field(default_factory=dict)
 
     @property
     def total_cargo(self) -> int:
-        return sum(
-            SHIP_STATS.get(name, {}).get("cargo", 0) * count
-            for name, count in self.ships.items()
-        )
+        return sum(SHIP_STATS.get(n, {}).get("cargo", 0) * c for n, c in self.ships.items())
 
     @property
     def total_count(self) -> int:
@@ -55,24 +51,16 @@ class FleetSlot:
 
     @property
     def total_attack(self) -> int:
-        return sum(
-            SHIP_STATS.get(name, {}).get("attack", 0) * count
-            for name, count in self.ships.items()
-        )
+        return sum(SHIP_STATS.get(n, {}).get("attack", 0) * c for n, c in self.ships.items())
 
     @property
-    def fleet_points(self) -> int:
-        """Approximate fleet points (based on build cost / 1000)."""
-        return sum(
-            ((SHIP_STATS.get(n, {}).get("cost_metal", 0) +
-              SHIP_STATS.get(n, {}).get("cost_crystal", 0)) // 1000) * c
-            for n, c in self.ships.items()
-        )
+    def total_points(self) -> int:
+        return sum(SHIP_STATS.get(n, {}).get("points", 0) * c for n, c in self.ships.items())
 
 
 @dataclass
 class OptimizerInput:
-    available_ships: dict[str, int]   # ship_name → available count
+    available_ships: dict[str, int]   # ships available PER SLOT
     slots: int = 7
     max_ships_per_slot: int = 15_010_000
     avg_loot_metal: int = 163_000_000_000
@@ -87,157 +75,166 @@ class OptimizerResult:
     warnings: list[str]
 
 
-def optimize_fleet(inp: OptimizerInput) -> OptimizerResult:
-    """
-    Recommend optimal fleet composition per expedition slot.
+def _build_slot(available: dict[str, int], max_ships: int,
+                gt_count: int, combat_budget: int) -> FleetSlot:
+    """Build a single slot with given GT count + fill remaining budget with combat ships."""
+    ships: dict[str, int] = {}
 
-    Strategy:
-    1. Calculate needed cargo capacity (= avg total loot + 20% buffer)
-    2. Fill cargo with most efficient cargo ships (GT > Recycler > KT)
-    3. Fill remaining ship slots with combat ships to protect against pirates
-    4. Divide across slots, respecting max_ships_per_slot
+    if gt_count > 0:
+        ships["Großer Transporter"] = gt_count
 
-    Key constraint: total ships across all slots ≤ available ships
-    """
-    warnings = []
-    avg_total_loot = inp.avg_loot_metal + inp.avg_loot_crystal + inp.avg_loot_deut
-    needed_cargo = int(avg_total_loot * 1.2)  # 20% buffer
-
-    # --- Step 1: How many GT needed per slot? ---
-    # available_ships = total fleet the user owns
-    # max_ships_per_slot = the per-slot cap the user sets (e.g. 15,010,000)
-    # Each slot can use up to max_ships_per_slot ships regardless of total count,
-    # BUT we can't use more than (total_available / slots) per slot on average.
-    gt_per_slot_needed = needed_cargo // SHIP_STATS["Großer Transporter"]["cargo"]
-
-    avail_gt_total = inp.available_ships.get("Großer Transporter", 0)
-    # If user owns enough GT to fill all slots simultaneously, per-slot cap is the limit.
-    # If not, distribute evenly across slots.
-    gt_per_slot_available = (
-        avail_gt_total // max(inp.slots, 1)
-        if avail_gt_total < inp.max_ships_per_slot * inp.slots
-        else inp.max_ships_per_slot
-    )
-    avail_gt_per_slot = gt_per_slot_available  # used later for analysis
-    gt_per_slot_actual = min(
-        gt_per_slot_needed,
-        gt_per_slot_available,
-        inp.max_ships_per_slot,
-    )
-
-    cargo_per_slot_with_gt = gt_per_slot_actual * SHIP_STATS["Großer Transporter"]["cargo"]
-    cargo_deficit = max(0, needed_cargo - cargo_per_slot_with_gt)
-
-    # --- Step 2: Fill remaining ship slots with combat ships ---
-    # max_ships_per_slot is the cap PER slot, GT uses some of that
-    remaining_slots_per_fleet = inp.max_ships_per_slot - gt_per_slot_actual
-
-    # Combat ship priority: Schlachtkreuzer > Schlachtschiff > Zerstörer
-    combat_priority = ["Schlachtkreuzer", "Schlachtschiff", "Zerstörer", "Bomber", "Kreuzer"]
-    combat_ships_per_slot: dict[str, int] = {}
-
-    remaining = remaining_slots_per_fleet
-    for ship in combat_priority:
-        avail = inp.available_ships.get(ship, 0)
+    remaining = combat_budget
+    for ship in COMBAT_PRIORITY:
+        avail = available.get(ship, 0)
         if avail <= 0 or remaining <= 0:
             continue
-        # If user has enough to fill all slots, use max_ships_per_slot as cap
-        avail_per_slot = (
-            avail // max(inp.slots, 1)
-            if avail < inp.max_ships_per_slot * inp.slots
-            else remaining
-        )
-        per_slot = min(avail_per_slot, remaining)
-        if per_slot > 0:
-            combat_ships_per_slot[ship] = per_slot
-            remaining -= per_slot
+        take = min(avail, remaining)
+        if take > 0:
+            ships[ship] = take
+            remaining -= take
 
-    # --- Build slot ---
-    slot_ships = {"Großer Transporter": gt_per_slot_actual}
-    slot_ships.update(combat_ships_per_slot)
+    return FleetSlot(ships=ships)
 
-    slot = FleetSlot(ships=slot_ships)
 
-    # --- Analysis ---
-    total_attack = slot.total_attack
-    pirate_threshold = 20_000_000  # typical pirate fleet strength from data
-    win_chance_estimate = min(95, int(50 + (total_attack / pirate_threshold) * 10))
+def optimize_fleet(inp: OptimizerInput) -> OptimizerResult:
+    warnings: list[str] = []
+    avg_total_loot = inp.avg_loot_metal + inp.avg_loot_crystal + inp.avg_loot_deut
+    needed_cargo   = int(avg_total_loot * 1.2)   # 20% buffer
+    gt_cargo       = SHIP_STATS["Großer Transporter"]["cargo"]  # 25,000
 
-    # GT reduction vs current setup — user currently sends all available GT per slot
-    current_gt_per_slot = avail_gt_per_slot // max(inp.slots, 1)
-    gt_reduction = current_gt_per_slot - gt_per_slot_actual
-    gt_freed = gt_reduction * inp.slots
+    avail_gt = inp.available_ships.get("Großer Transporter", 0)
+
+    # ── How much cargo do combat ships already provide? ───────────────────────
+    # Fill a full slot with pure combat ships and measure their cargo contribution
+    combat_only_slot = _build_slot(inp.available_ships, inp.max_ships_per_slot, 0, inp.max_ships_per_slot)
+    combat_cargo = combat_only_slot.total_cargo
+
+    # ── Three modes ──────────────────────────────────────────────────────────
+    results = {}
+
+    for mode in ("safe", "balanced", "aggressive"):
+        if mode == "safe":
+            # Max cargo: fill with GT first, top up with combat
+            gt_needed     = max(0, -(-needed_cargo // gt_cargo))
+            gt_used       = min(gt_needed, avail_gt, inp.max_ships_per_slot)
+            combat_budget = max(0, inp.max_ships_per_slot - gt_used)
+
+        elif mode == "balanced":
+            # Cover 80% of needed cargo with GT, rest with combat ships
+            target_gt_cargo = int(needed_cargo * 0.80)
+            gt_used = min(
+                -(-target_gt_cargo // gt_cargo),
+                avail_gt,
+                inp.max_ships_per_slot,
+            )
+            combat_budget = max(0, inp.max_ships_per_slot - gt_used)
+
+        else:  # aggressive
+            # Minimum GT to cover 50% of needed cargo — pack the rest with combat
+            target_gt_cargo = int(needed_cargo * 0.50)
+            gt_used = min(
+                -(-target_gt_cargo // gt_cargo),
+                avail_gt,
+                inp.max_ships_per_slot,
+            )
+            combat_budget = max(0, inp.max_ships_per_slot - gt_used)
+
+        slot = _build_slot(inp.available_ships, inp.max_ships_per_slot, gt_used, combat_budget)
+
+        cargo_coverage = int(slot.total_cargo / needed_cargo * 100) if needed_cargo else 100
+        cargo_deficit  = max(0, needed_cargo - slot.total_cargo)
+
+        # Pirate win chance estimate based on attack power
+        # From your data: ~20M attack ≈ 50% win chance
+        pirate_threshold = 20_000_000
+        raw_win = 30 + int((slot.total_attack / pirate_threshold) * 25)
+        win_est = min(98, max(5, raw_win))
+
+        mode_warnings = []
+        if cargo_deficit > 0:
+            mode_warnings.append(
+                f"Cargo deficit: {cargo_deficit / 1e9:.1f} Mrd short per slot. "
+                "Some loot may be uncollectable."
+            )
+        if cargo_coverage > 300:
+            gt_excess = gt_used - (-(-needed_cargo // gt_cargo))
+            mode_warnings.append(
+                f"Heavy cargo overcapacity ({cargo_coverage}% of needed). "
+                f"~{gt_excess:,} GT could be replaced with combat ships."
+            )
+        if slot.total_attack == 0:
+            mode_warnings.append("No combat ships — pirate encounters will be very risky.")
+        elif win_est < 40:
+            mode_warnings.append("Low pirate win chance. Consider adding more combat ships.")
+
+        results[mode] = {
+            "slot": slot,
+            "gt_used": gt_used,
+            "combat_budget": combat_budget,
+            "cargo_coverage": cargo_coverage,
+            "cargo_deficit": cargo_deficit,
+            "win_est": win_est,
+            "warnings": mode_warnings,
+        }
+
+    # ── Current setup (what user entered) ─────────────────────────────────────
+    current_gt_capped = min(avail_gt, inp.max_ships_per_slot)
+    current_slot = _build_slot(
+        inp.available_ships,
+        inp.max_ships_per_slot,
+        current_gt_capped,
+        max(0, inp.max_ships_per_slot - current_gt_capped),
+    )
+    current_coverage = int(current_slot.total_cargo / needed_cargo * 100) if needed_cargo else 100
+    current_win = min(98, max(5, 30 + int((current_slot.total_attack / 20_000_000) * 25)))
 
     analysis = {
-        "needed_cargo_per_slot": needed_cargo,
-        "cargo_covered_per_slot": slot.total_cargo,
-        "cargo_coverage_pct": int(slot.total_cargo / needed_cargo * 100) if needed_cargo else 100,
-        "total_ships_per_slot": slot.total_count,
-        "fleet_points_per_slot": slot.fleet_points,
-        "estimated_pirate_win_pct": win_chance_estimate,
-        "gt_freed_total": gt_freed,
-        "gt_per_slot_recommended": gt_per_slot_actual,
-        "gt_per_slot_current": current_gt_per_slot,
-        "combat_ships_added": sum(combat_ships_per_slot.values()),
+        "needed_cargo": needed_cargo,
+        "avg_total_loot": avg_total_loot,
+        "current": {
+            "slot": current_slot,
+            "cargo_coverage": current_coverage,
+            "win_est": current_win,
+            "gt_used": current_gt_capped,
+        },
+        "safe":       results["safe"],
+        "balanced":   results["balanced"],
+        "aggressive": results["aggressive"],
     }
 
-    # Warnings
-    if gt_per_slot_actual * SHIP_STATS["Großer Transporter"]["cargo"] < needed_cargo:
-        warnings.append(
-            f"Cargo deficit: {cargo_deficit:,.0f} cargo short per slot. "
-            "Consider keeping more GT or add Recycler."
-        )
-    if cargo_per_slot_with_gt > needed_cargo * 3:
-        warnings.append(
-            "You are sending far more cargo than needed. "
-            f"You could free up ~{gt_freed:,} GT across all slots and add combat ships."
-        )
-    if not combat_ships_per_slot:
-        warnings.append(
-            "No combat ships available. Pirate encounters will be risky. "
-            "Consider adding Schlachtkreuzer or Schlachtschiff."
-        )
-    if win_chance_estimate < 50:
-        warnings.append("Low estimated win chance vs pirates. Add more combat ships.")
+    # Top-level warnings (independent of mode)
+    if avail_gt == 0 and combat_cargo < needed_cargo:
+        warnings.append("No GT entered and combat ships don't cover needed cargo. Add GT or Recycler.")
 
     return OptimizerResult(
-        recommended_slots=[slot] * inp.slots,
+        recommended_slots=[results["balanced"]["slot"]] * inp.slots,
         analysis=analysis,
         warnings=warnings,
     )
 
 
 def get_user_stats_summary(expeditions: list) -> dict:
-    """
-    Compute aggregate stats from a list of Expedition ORM objects.
-    Used to seed the optimizer with real historical data.
-    """
     if not expeditions:
         return {}
 
     total = len(expeditions)
     success_res = [e for e in expeditions if e.outcome_type.startswith("success")]
-    losses = [e for e in expeditions if e.outcome_type in ("storm", "contact_lost", "gravity", "vanished", "pirates_win", "pirates_loss")]
-    vanished = [e for e in expeditions if e.outcome_type == "vanished"]
-    failed = [e for e in expeditions if e.outcome_type == "failed"]
+    losses      = [e for e in expeditions if e.outcome_type in ("storm", "contact_lost", "gravity", "vanished", "pirates_win", "pirates_loss")]
+    vanished    = [e for e in expeditions if e.outcome_type == "vanished"]
+    failed      = [e for e in expeditions if e.outcome_type == "failed"]
 
-    # Average resources from successful resource runs
-    res_runs = [e for e in expeditions if e.metal > 0]
-    avg_metal = int(sum(e.metal for e in res_runs) / len(res_runs)) if res_runs else 0
+    res_runs    = [e for e in expeditions if e.metal > 0]
+    avg_metal   = int(sum(e.metal for e in res_runs) / len(res_runs)) if res_runs else 0
     avg_crystal = int(sum(e.crystal for e in res_runs) / len(res_runs)) if res_runs else 0
-    avg_deut = int(sum(e.deuterium for e in res_runs) / len(res_runs)) if res_runs else 0
+    avg_deut    = int(sum(e.deuterium for e in res_runs) / len(res_runs)) if res_runs else 0
 
-    # Total gains
-    total_metal = sum(e.metal for e in expeditions)
+    total_metal   = sum(e.metal for e in expeditions)
     total_crystal = sum(e.crystal for e in expeditions)
-    total_deut = sum(e.deuterium for e in expeditions)
-    total_dm = sum(e.dark_matter for e in expeditions)
-
-    # Loss analysis
-    gt_losses = sum(
+    total_deut    = sum(e.deuterium for e in expeditions)
+    total_dm      = sum(e.dark_matter for e in expeditions)
+    gt_losses     = sum(
         abs(e.ships_delta.get("Großer Transporter", 0))
-        for e in expeditions
-        if e.ships_delta
+        for e in expeditions if e.ships_delta
     )
 
     return {
