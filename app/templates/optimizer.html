@@ -28,6 +28,7 @@
         <button class="btn btn-sm ghost" id="btn-save-fleet" type="button">💾 Save Fleet</button>
         <button class="btn btn-sm ghost" id="btn-load-fleet" type="button" style="display:none">📂 Load Saved</button>
         <button class="btn btn-sm ghost" id="btn-clear-fleet" type="button">✕ Clear</button>
+        <button class="btn btn-sm" id="btn-paste-import" type="button" style="background:rgba(96,165,250,.15);border-color:rgba(96,165,250,.4);color:#93c5fd">📋 Paste from Game</button>
       </div>
     </div>
     </div>
@@ -37,7 +38,7 @@
       <div style="display:flex;align-items:center;justify-content:space-between;
                   background:rgba(0,0,0,.2);border:1px solid var(--line-1);
                   border-radius:10px;padding:10px 14px">
-        <label class="fs-13" style="color:var(--text-1)" for="ship-{{ loop.index }}">{{ ship }}</label>
+        <label class="fs-13 ship-label" style="color:var(--text-1)" for="ship-{{ loop.index }}" data-de="{{ ship }}">{{ ship }}</label>
         <input type="number" id="ship-{{ loop.index }}" data-ship="{{ ship }}"
                class="ship-input" min="0" value="0"
                style="width:110px;padding:6px 10px;border-radius:8px;border:1px solid var(--line-2);
@@ -121,6 +122,29 @@
     <button class="btn" id="btn-optimize" style="min-width:180px">Calculate Optimal Fleet</button>
   </div>
 
+  <!-- Paste import modal -->
+  <div id="paste-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;display:none;align-items:center;justify-content:center">
+    <div class="card" style="width:min(600px,95vw);padding:24px;max-height:80vh;display:flex;flex-direction:column">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h2 style="margin:0">Paste Fleet from Game</h2>
+        <button id="paste-close" style="background:none;border:none;color:var(--text-1);font-size:1.4rem;cursor:pointer">✕</button>
+      </div>
+      <p class="muted fs-12" style="margin-bottom:12px">
+        In OGX, go to <strong>Fleet → Send Expedition</strong>, then select-all and copy the ship list. Paste it below.
+      </p>
+      <textarea id="paste-text" rows="10"
+        placeholder="Kleiner Transporter ... 26.706.289&#10;Großer Transporter ... 4.519.742&#10;..."
+        style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--line-2);
+               background:rgba(0,0,0,.3);color:var(--text-0);font-family:var(--font-mono);
+               font-size:12px;resize:vertical;flex:1"></textarea>
+      <div style="display:flex;gap:10px;margin-top:16px">
+        <button class="btn" id="paste-confirm" style="flex:1">✓ Import Fleet</button>
+        <button class="btn ghost" id="paste-cancel">Cancel</button>
+      </div>
+      <div id="paste-result" class="muted fs-12" style="margin-top:8px"></div>
+    </div>
+  </div>
+
   <!-- Results -->
   <div id="result" style="display:none">
 
@@ -164,11 +188,7 @@
       </div>
     </div>
 
-    <!-- Current setup comparison -->
-    <div class="card" style="padding:16px 20px;margin-bottom:16px;border-color:rgba(255,255,255,.06)">
-      <div class="fs-12 muted" style="margin-bottom:10px;letter-spacing:.06em;text-transform:uppercase">Your Current Setup <span style="font-weight:400;text-transform:none;letter-spacing:0">(per slot, based on total ÷ slots)</span></div>
-      <div id="current-summary"></div>
-    </div>
+
 
     <!-- Suggestions -->
     <div id="suggestions-box" style="display:none;margin-bottom:16px">
@@ -239,8 +259,9 @@
     for(const [ship, cnt] of Object.entries(ships)){
       const cargo = (CARGO_MAP[ship]||0)*cnt;
       const isGT = ship.includes("Transporter");
+      const shipEN = SHIP_DISPLAY[ship] || ship;
       html += `<tr>
-        <td style="padding:7px 10px;font-size:13px">${ship}</td>
+        <td style="padding:7px 10px;font-size:13px">${shipEN}</td>
         <td style="text-align:right;padding:7px 10px;font-weight:700;font-family:var(--font-mono)">${cnt.toLocaleString("de-DE")}</td>
         <td style="text-align:right;padding:7px 10px;color:${isGT?"var(--acc-1)":"var(--muted)"};font-family:var(--font-mono)">${fmtNum(cargo)}</td>
       </tr>`;
@@ -287,6 +308,91 @@
     el.innerHTML = "<ul>"+warnings.map(w=>`<li>${w}</li>`).join("")+"</ul>";
     el.style.display = "block";
   }
+
+  // ── Paste-from-game import ───────────────────────────────────────────────
+  // DE → EN display translation
+  const SHIP_DISPLAY = {
+    "Kleiner Transporter": "Small Cargo",
+    "Großer Transporter":  "Large Cargo",
+    "Leichter Jäger":      "Light Fighter",
+    "Schwerer Jäger":      "Heavy Fighter",
+    "Kreuzer":             "Cruiser",
+    "Schlachtschiff":      "Battleship",
+    "Schlachtkreuzer":     "Battlecruiser",
+    "Bomber":              "Bomber",
+    "Zerstörer":           "Destroyer",
+    "Todesstern":          "Deathstar",
+    "Recycler":            "Recycler",
+    "Spionagesonde":       "Espionage Probe",
+  };
+  // Apply English labels to all ship inputs
+  document.querySelectorAll(".ship-label").forEach(lbl => {
+    const de = lbl.dataset.de;
+    if (SHIP_DISPLAY[de]) lbl.textContent = SHIP_DISPLAY[de];
+  });
+
+  const SHIP_NAME_MAP = {
+    "kleiner transporter":  "Kleiner Transporter",
+    "großer transporter":   "Großer Transporter",
+    "leichter jäger":       "Leichter Jäger",
+    "schwerer jäger":       "Schwerer Jäger",
+    "kreuzer":              "Kreuzer",
+    "schlachtschiff":       "Schlachtschiff",
+    "schlachtkreuzer":      "Schlachtkreuzer",
+    "bomber":               "Bomber",
+    "zerstörer":            "Zerstörer",
+    "todesstern":           "Todesstern",
+    "recycler":             "Recycler",
+    "spionagesonde":        "Spionagesonde",
+  };
+
+  function parseGamePaste(text) {
+    const result = {};
+    for (const line of text.split('\n')) {
+      const lower = line.toLowerCase();
+      for (const [key, canonical] of Object.entries(SHIP_NAME_MAP)) {
+        if (lower.includes(key)) {
+          // Extract all numbers (de-DE format: 1.234.567 → strip dots)
+          const nums = [...line.matchAll(/\d[\d.]*/g)]
+            .map(m => parseInt(m[0].replace(/\./g, '')))
+            .filter(n => n >= 1 && n < 2_000_000_000);
+          if (nums.length) result[canonical] = Math.max(...nums);
+          break;
+        }
+      }
+    }
+    return result;
+  }
+
+  const pasteModal  = document.getElementById("paste-modal");
+  const pasteText   = document.getElementById("paste-text");
+  const pasteResult = document.getElementById("paste-result");
+
+  document.getElementById("btn-paste-import").addEventListener("click", () => {
+    pasteModal.style.display = "flex";
+    pasteText.value = "";
+    pasteResult.textContent = "";
+    pasteText.focus();
+  });
+  document.getElementById("paste-close").addEventListener("click",  () => pasteModal.style.display = "none");
+  document.getElementById("paste-cancel").addEventListener("click", () => pasteModal.style.display = "none");
+  pasteModal.addEventListener("click", e => { if(e.target === pasteModal) pasteModal.style.display = "none"; });
+
+  document.getElementById("paste-confirm").addEventListener("click", () => {
+    const parsed = parseGamePaste(pasteText.value);
+    const count  = Object.keys(parsed).length;
+    if (!count) {
+      pasteResult.textContent = "⚠ No ships found — copy the full fleet selection page from OGX.";
+      pasteResult.style.color = "#f87171";
+      return;
+    }
+    document.querySelectorAll(".ship-input").forEach(inp => {
+      inp.value = parsed[inp.dataset.ship] || 0;
+    });
+    pasteResult.textContent = `✓ Imported ${count} ship types`;
+    pasteResult.style.color = "var(--good)";
+    setTimeout(() => { pasteModal.style.display = "none"; }, 900);
+  });
 
   // Tab switching
   document.querySelectorAll(".mode-tab").forEach(btn => {
@@ -348,19 +454,7 @@
         renderWarnings("warn-"+mode, d.warnings);
       }
 
-      // Current setup
-      const cur = data.current;
-      const curWinColor = (cur.win_est||0)>=70?"var(--good)":(cur.win_est||0)>=50?"#fbbf24":"#f87171";
-      const curCovColor = (cur.cargo_coverage||0)>=90?"var(--good)":(cur.cargo_coverage||0)>=60?"#fbbf24":"#f87171";
-      document.getElementById("current-summary").innerHTML = `
-        <div style="display:flex;gap:24px;flex-wrap:wrap;font-size:13px">
-          <span>Ships: <strong>${(cur.total_count||0).toLocaleString("de-DE")}</strong></span>
-          <span>Cargo: <strong style="color:var(--acc-1)">${fmtNum(cur.total_cargo)}</strong></span>
-          <span>Coverage: <strong style="color:${curCovColor}">${fmtPct(cur.cargo_coverage)}</strong></span>
-          <span>Attack: <strong>${fmtNum(cur.total_attack)}</strong></span>
-          <span>Pirate Win: <strong style="color:${curWinColor}">${fmtPct(cur.win_est)}</strong></span>
-          <span class="muted">Avg loot needed: ${fmtNum(needed)}</span>
-        </div>`;
+
 
       // Suggestions
       if(data.suggestions && data.suggestions.length){
