@@ -93,7 +93,7 @@
       data: {
         labels,
         datasets: [{
-          label: "Dark Matter",
+          label: (window.I18N && window.I18N["dm.chart_label"]) || "Dark Matter",
           data: values,
           backgroundColor: "rgba(167,139,250,.55)",
           borderColor:     "rgba(167,139,250,.9)",

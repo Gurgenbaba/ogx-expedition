@@ -28,7 +28,7 @@
     <div class="code-card__tier tier-{{ c.tier or 1 }}">{% if c.tier %}{{ t('codes.tier', n=c.tier) }}{% else %}{{ t('codes.tier_unknown') }}{% endif %}</div>
     <div class="code-card__code">{{ c.code }}</div>
     <div class="code-card__meta muted fs-12">
-      Exp #{{ c.exp_number or '—' }}
+      {{ t('codes.exp_label') }}{{ c.exp_number or '—' }}
       {% if c.found_at %}· {{ c.found_at.strftime('%d.%m.%Y') }}{% endif %}
     </div>
     <div class="code-card__actions">
@@ -48,7 +48,7 @@
     <div class="code-card__tier tier-{{ c.tier or 1 }}">{% if c.tier %}{{ t('codes.tier', n=c.tier) }}{% else %}{{ t('codes.tier_unknown') }}{% endif %}</div>
     <div class="code-card__code">{{ c.code }}</div>
     <div class="code-card__meta muted fs-12">
-      Exp #{{ c.exp_number or '—' }}
+      {{ t('codes.exp_label') }}{{ c.exp_number or '—' }}
       {% if c.found_at %}· {{ c.found_at.strftime('%d.%m.%Y') }}{% endif %}
       {% if c.redeemed_at %}· {{ t('codes.redeemed_on', date=c.redeemed_at.strftime('%d.%m.%Y')) }}{% endif %}
     </div>

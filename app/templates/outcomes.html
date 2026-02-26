@@ -79,16 +79,16 @@
 
     <div style="display:flex;gap:24px;flex-wrap:wrap;font-size:13px;margin-bottom:{% if has_losses or has_gains %}14px{% else %}0{% endif %}">
       {% if data.metal > 0 %}
-      <span>Metal: <strong style="color:#94a3b8">{{ (data.metal / 1e9) | round(1) }} Mrd</strong></span>
+      <span>{{ t("out.metal") }}: <strong style="color:#94a3b8">{{ (data.metal / 1e9) | round(1) }} Mrd</strong></span>
       {% endif %}
       {% if data.crystal > 0 %}
-      <span>Crystal: <strong style="color:#7dd3fc">{{ (data.crystal / 1e9) | round(1) }} Mrd</strong></span>
+      <span>{{ t("out.crystal") }}: <strong style="color:#7dd3fc">{{ (data.crystal / 1e9) | round(1) }} Mrd</strong></span>
       {% endif %}
       {% if data.deut > 0 %}
-      <span>Deut: <strong style="color:#86efac">{{ (data.deut / 1e9) | round(1) }} Mrd</strong></span>
+      <span>{{ t("out.deut") }}: <strong style="color:#86efac">{{ (data.deut / 1e9) | round(1) }} Mrd</strong></span>
       {% endif %}
       {% if data.dm > 0 %}
-      <span>DM: <strong style="color:#a78bfa">{{ "{:,}".format(data.dm).replace(",",".") }}</strong></span>
+      <span>{{ t("out.dm") }}: <strong style="color:#a78bfa">{{ "{:,}".format(data.dm).replace(",",".") }}</strong></span>
       {% endif %}
     </div>
 

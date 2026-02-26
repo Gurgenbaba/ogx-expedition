@@ -189,5 +189,15 @@
   "ship.Todesstern": "Étoile de la Mort",
   "ship.Recycler": "Recycleur",
   "ship.Spionagesonde": "Sonde d'Espionnage",
-  "ship.Pathfinder": "Éclaireur"
+  "ship.Pathfinder": "Éclaireur",
+  "out.metal": "Metal",
+  "out.crystal": "Cristal",
+  "out.deut": "Deut",
+  "out.dm": "MD",
+  "opt.max_per_slot": "Max / Slot",
+  "dm.chart_label": "Matiere Noire",
+  "opt.suggestions_ship": "vaisseau",
+  "codes.exp_label": "Exp. #",
+  "opt.sugg_cargo_reason": "ajoute {cargo} Mrd cargo (+{count} vaisseaux, {free} libres dans le slot)",
+  "opt.sugg_combat_reason": "ameliore chance victoire pirates a ~70% (+{count} vaisseaux, {free} libres)"
 }

@@ -67,6 +67,7 @@ class OptimizerInput:
     avg_loot_metal: int = 163_000_000_000
     avg_loot_crystal: int = 108_000_000_000
     avg_loot_deut: int = 55_000_000_000
+    lang: str = "en"
 
 
 @dataclass
@@ -132,6 +133,26 @@ def _cargo_coverage(slot: FleetSlot, needed_cargo: int) -> int:
     if needed_cargo <= 0:
         return 100
     return min(999, int(slot.total_cargo / needed_cargo * 100))
+
+
+_SUGG: dict = {
+    "en": {
+        "cargo":  "adds {cargo:.0f} Mrd cargo (+{count} ships, {free} free in slot)",
+        "combat": "boosts pirate win chance to ~70% (+{count} ships, {free} free in slot)",
+    },
+    "de": {
+        "cargo":  "+{cargo:.0f} Mrd Ladung (+{count} Schiffe, {free} frei im Slot)",
+        "combat": "steigert Piraten-Chance auf ~70% (+{count} Schiffe, {free} frei im Slot)",
+    },
+    "fr": {
+        "cargo":  "ajoute {cargo:.0f} Mrd cargo (+{count} vaisseaux, {free} libres dans le slot)",
+        "combat": "ameliore chance victoire pirates a ~70% (+{count} vaisseaux, {free} libres)",
+    },
+}
+
+def _sugg_reason(kind: str, lang: str, cargo: float, count: int, free: int) -> str:
+    tmpl = _SUGG.get(lang, _SUGG["en"]).get(kind, "")
+    return tmpl.format(cargo=cargo, count=count, free=free)
 
 
 def optimize_fleet(inp: OptimizerInput) -> OptimizerResult:
@@ -243,7 +264,7 @@ def optimize_fleet(inp: OptimizerInput) -> OptimizerResult:
                 suggestions.append({
                     "ship": ship,
                     "count": needed_ships,
-                    "reason": f"adds {needed_ships * cargo_per / 1e9:.0f} Mrd cargo (+{needed_ships} ships, {ships_free} free in slot)",
+                    "reason": _sugg_reason("cargo", inp.lang, needed_ships * cargo_per / 1e9, needed_ships, ships_free),
                     "type": "cargo",
                 })
             break
@@ -261,7 +282,7 @@ def optimize_fleet(inp: OptimizerInput) -> OptimizerResult:
                     suggestions.append({
                         "ship": ship,
                         "count": needed_ships,
-                        "reason": f"boosts pirate win chance to ~70% (+{needed_ships} ships, {ships_free} free in slot)",
+                        "reason": _sugg_reason("combat", inp.lang, 0, needed_ships, ships_free),
                         "type": "combat",
                     })
                 break

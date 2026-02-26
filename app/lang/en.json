@@ -189,5 +189,15 @@
   "ship.Todesstern": "Deathstar",
   "ship.Recycler": "Recycler",
   "ship.Spionagesonde": "Espionage Probe",
-  "ship.Pathfinder": "Pathfinder"
+  "ship.Pathfinder": "Pathfinder",
+  "out.metal": "Metal",
+  "out.crystal": "Crystal",
+  "out.deut": "Deut",
+  "out.dm": "DM",
+  "opt.max_per_slot": "Max / Slot",
+  "dm.chart_label": "Dark Matter",
+  "opt.suggestions_ship": "ship",
+  "codes.exp_label": "Exp #",
+  "opt.sugg_cargo_reason": "adds {cargo} Mrd cargo (+{count} ships, {free} free in slot)",
+  "opt.sugg_combat_reason": "boosts pirate win chance to ~70% (+{count} ships, {free} free in slot)"
 }

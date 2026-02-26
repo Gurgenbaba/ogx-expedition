@@ -508,6 +508,7 @@ async def optimizer_calculate(request: Request, payload: dict = Body(...)):
             avg_loot_metal=stats.get("avg_metal") or 163_000_000_000,
             avg_loot_crystal=stats.get("avg_crystal") or 108_000_000_000,
             avg_loot_deut=stats.get("avg_deut") or 55_000_000_000,
+            lang=get_lang(request),
         )
 
         result = optimize_fleet(inp)

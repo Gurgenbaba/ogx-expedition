@@ -189,5 +189,15 @@
   "ship.Todesstern": "Todesstern",
   "ship.Recycler": "Recycler",
   "ship.Spionagesonde": "Spionagesonde",
-  "ship.Pathfinder": "Pathfinder"
+  "ship.Pathfinder": "Pathfinder",
+  "out.metal": "Metall",
+  "out.crystal": "Kristall",
+  "out.deut": "Deut",
+  "out.dm": "DM",
+  "opt.max_per_slot": "Max / Slot",
+  "dm.chart_label": "Materie Noir",
+  "opt.suggestions_ship": "Schiff",
+  "codes.exp_label": "Expo #",
+  "opt.sugg_cargo_reason": "fuegt {cargo} Mrd Ladung hinzu (+{count} Schiffe, {free} frei im Slot)",
+  "opt.sugg_combat_reason": "erhoht Piraten-Gewinnchance auf ~70% (+{count} Schiffe, {free} frei im Slot)"
 }
