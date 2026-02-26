@@ -63,10 +63,8 @@
       <span class="fs-12 muted" style="font-style:italic">{{ t('opt.paste') }} {{ t('opt.fleet_sub') }}</span>
       <input type="hidden" id="inp-max" value="15010000" />
     </div>
-      </div>
-    </div>
 
-    <div style="margin-top:8px">
+    <div style="margin-top:16px">
       <button class="btn" id="btn-optimize" style="min-width:180px">{{ t('opt.calc_btn') }}</button>
     </div>
   </div>
@@ -200,11 +198,13 @@
   function renderComp(containerId, ships){
     const el = document.getElementById(containerId);
     if(!ships || !Object.keys(ships).length){ el.innerHTML='<span class="muted fs-12">No ships</span>'; return; }
-    let html = '<table style="width:100%;border-collapse:collapse"><thead><tr>'
-      + '<th style="text-align:left;padding:6px 10px;font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid rgba(255,255,255,.07)">Ship</th>'
-      + '<th style="text-align:right;padding:6px 10px;font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid rgba(255,255,255,.07)">Count</th>'
-      + '<th style="text-align:right;padding:6px 10px;font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid rgba(255,255,255,.07)">Cargo</th>'
-      + '</tr></thead><tbody>';
+    const th = 'padding:6px 10px;font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid rgba(255,255,255,.07)';
+    const L2 = key => (window.I18N && window.I18N[key]) || key.split('.').pop();
+    let html = `<table style="width:100%;border-collapse:collapse"><thead><tr>
+      <th style="text-align:left;${th}">${L2('opt.col_ship')}</th>
+      <th style="text-align:right;${th}">${L2('opt.col_count')}</th>
+      <th style="text-align:right;${th}">${L2('opt.col_cargo')}</th>
+      </tr></thead><tbody>`;
     for(const [ship, cnt] of Object.entries(ships)){
       const cargo = (CARGO_MAP[ship]||0)*cnt;
       const isGT = ship.includes("Transporter");
@@ -223,29 +223,30 @@
     const el = document.getElementById(containerId);
     const winColor = d.win_est >= 70 ? "var(--good)" : d.win_est >= 50 ? "#fbbf24" : "#f87171";
     const covColor = d.cargo_coverage >= 90 ? "var(--good)" : d.cargo_coverage >= 60 ? "#fbbf24" : "#f87171";
+    const L = key => (window.I18N && window.I18N[key]) || key.split('.').pop();
     el.innerHTML = `
       <div class="mode-kpi">
-        <div class="mode-kpi__label">'+(window.I18N['opt.kpi_ships']||'Ships / Slot')+'
+        <div class="mode-kpi__label">${L('opt.kpi_ships')}</div>
         <div class="mode-kpi__value">${(d.total_count||0).toLocaleString("de-DE")}</div>
       </div>
       <div class="mode-kpi">
-        <div class="mode-kpi__label">Cargo Capacity</div>
+        <div class="mode-kpi__label">${L('opt.kpi_cargo_cap')}</div>
         <div class="mode-kpi__value" style="color:var(--acc-1)">${fmtNum(d.total_cargo)}</div>
       </div>
       <div class="mode-kpi">
-        <div class="mode-kpi__label">Cargo Coverage</div>
+        <div class="mode-kpi__label">${L('opt.kpi_coverage')}</div>
         <div class="mode-kpi__value" style="color:${covColor}">${fmtPct(d.cargo_coverage)}</div>
       </div>
       <div class="mode-kpi">
-        <div class="mode-kpi__label">Attack Power</div>
+        <div class="mode-kpi__label">${L('opt.kpi_attack')}</div>
         <div class="mode-kpi__value">${fmtNum(d.total_attack)}</div>
       </div>
       <div class="mode-kpi">
-        <div class="mode-kpi__label">Pirate Win Est.</div>
+        <div class="mode-kpi__label">${L('opt.kpi_pirate')}</div>
         <div class="mode-kpi__value" style="color:${winColor}">${fmtPct(d.win_est)}</div>
       </div>
       <div class="mode-kpi">
-        <div class="mode-kpi__label">GT in Slot</div>
+        <div class="mode-kpi__label">${L('opt.kpi_gt')}</div>
         <div class="mode-kpi__value">${(d.gt_used||0).toLocaleString("de-DE")}</div>
       </div>
     `;

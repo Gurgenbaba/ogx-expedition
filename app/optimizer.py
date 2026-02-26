@@ -227,33 +227,43 @@ def optimize_fleet(inp: OptimizerInput) -> OptimizerResult:
 
     suggestions: list[dict] = []
 
-    # Cargo gap
-    cargo_gap = max(0, int(needed_cargo * 0.80) - bal_slot.total_cargo)
-    if cargo_gap > 0:
-        for ship in ["Recycler", "Großer Transporter", "Kleiner Transporter"]:
-            cargo_per = SHIP_STATS[ship]["cargo"]
-            needed_ships = -(-cargo_gap // cargo_per)  # ceiling
-            suggestions.append({
-                "ship": ship,
-                "count": needed_ships,
-                "reason": f"adds {cargo_gap/1e9:.0f} Mrd cargo to reach 80% coverage",
-                "type": "cargo",
-            })
-            break  # suggest only best cargo ship
+    # How many ships are already used in the balanced slot?
+    ships_used   = bal_slot.total_count
+    ships_free   = max(0, inp.max_ships - ships_used)
 
-    # Combat gap
-    if bal_win < 70:
-        attack_needed = max(0, int((70 - 30) / 25 * 20_000_000) - bal_slot.total_attack)
-        if attack_needed > 0:
-            for ship in ["Zerstörer", "Schlachtschiff", "Schlachtkreuzer"]:
-                attack_per = SHIP_STATS[ship]["attack"]
-                needed_ships = -(-attack_needed // attack_per)
+    # Cargo gap — only suggest if there is room in the slot
+    cargo_gap = max(0, int(needed_cargo * 0.80) - bal_slot.total_cargo)
+    if cargo_gap > 0 and ships_free > 0:
+        for ship in ["Recycler", "Großer Transporter", "Kleiner Transporter"]:
+            cargo_per    = SHIP_STATS[ship]["cargo"]
+            needed_ships = min(-(-cargo_gap // cargo_per), ships_free)  # cap to free space
+            avail        = inp.available.get(ship, 0)
+            needed_ships = min(needed_ships, avail) if avail else needed_ships
+            if needed_ships > 0:
                 suggestions.append({
                     "ship": ship,
                     "count": needed_ships,
-                    "reason": f"boosts pirate win chance to ~70%",
-                    "type": "combat",
+                    "reason": f"adds {needed_ships * cargo_per / 1e9:.0f} Mrd cargo (+{needed_ships} ships, {ships_free} free in slot)",
+                    "type": "cargo",
                 })
+            break
+
+    # Combat gap
+    if bal_win < 70 and ships_free > 0:
+        attack_needed = max(0, int((70 - 30) / 25 * 20_000_000) - bal_slot.total_attack)
+        if attack_needed > 0:
+            for ship in ["Zerstörer", "Schlachtschiff", "Schlachtkreuzer"]:
+                attack_per   = SHIP_STATS[ship]["attack"]
+                needed_ships = min(-(-attack_needed // attack_per), ships_free)
+                avail        = inp.available.get(ship, 0)
+                needed_ships = min(needed_ships, avail) if avail else needed_ships
+                if needed_ships > 0:
+                    suggestions.append({
+                        "ship": ship,
+                        "count": needed_ships,
+                        "reason": f"boosts pirate win chance to ~70% (+{needed_ships} ships, {ships_free} free in slot)",
+                        "type": "combat",
+                    })
                 break
 
     analysis["suggestions"] = suggestions
