@@ -3,18 +3,16 @@
 {% block content %}
 
 <div style="max-width:860px;margin:0 auto">
-  <h1 style="margin-bottom:6px">Fleet Optimizer</h1>
+  <h1 style="margin-bottom:6px">{{ t('opt.title') }}</h1>
   <p class="muted" style="font-size:13px;margin-bottom:24px">
-    Enter ships <strong>per expedition slot</strong> — exactly what you send per expedition.
-    The optimizer shows Safe / Balanced / Aggressive mixes and what you could add to improve.
+    {{ t('opt.subtitle') }}
   </p>
 
   {% if stats and stats.avg_total_res %}
   <div class="card" style="padding:14px 20px;margin-bottom:20px;border-color:var(--acc-3)">
-    <div class="fs-12 muted">Based on your expedition history</div>
+    <div class="fs-12 muted">{{ t('opt.history_label') }}</div>
     <div style="font-weight:600;margin-top:2px">
-      Avg loot: {{ stats.avg_total_res | fmt_num }} / run &nbsp;·&nbsp;
-      {{ stats.total }} expeditions logged
+      {{ t('opt.history_val', avg=stats.avg_total_res | fmt_num, total=stats.total) }}
     </div>
   </div>
   {% endif %}
@@ -23,12 +21,12 @@
   <div class="card" style="padding:24px;margin-bottom:20px">
     <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:16px">
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px">
-      <h2 style="margin:0">Ships per Slot <span class="muted fs-12" style="font-weight:400">(what you send per expedition)</span></h2>
+      <h2 style="margin:0">{{ t('opt.fleet_title') }} <span class="muted fs-12" style="font-weight:400">{{ t('opt.fleet_sub') }}</span></h2>
       <div style="display:flex;gap:8px">
-        <button class="btn btn-sm ghost" id="btn-save-fleet" type="button">💾 Save Fleet</button>
-        <button class="btn btn-sm ghost" id="btn-load-fleet" type="button" style="display:none">📂 Load Saved</button>
-        <button class="btn btn-sm ghost" id="btn-clear-fleet" type="button">✕ Clear</button>
-        <button class="btn btn-sm" id="btn-paste-import" type="button" style="background:rgba(96,165,250,.15);border-color:rgba(96,165,250,.4);color:#93c5fd">📋 Paste from Game</button>
+        <button class="btn btn-sm ghost" id="btn-save-fleet" type="button">{{ t('opt.save') }}</button>
+        <button class="btn btn-sm ghost" id="btn-load-fleet" type="button" style="display:none">{{ t('opt.load') }}</button>
+        <button class="btn btn-sm ghost" id="btn-clear-fleet" type="button">{{ t('opt.clear') }}</button>
+        <button class="btn btn-sm" id="btn-paste-import" type="button" style="background:rgba(96,165,250,.15);border-color:rgba(96,165,250,.4);color:#93c5fd">{{ t('opt.paste') }}</button>
       </div>
     </div>
     </div>
@@ -49,13 +47,13 @@
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
       <div>
-        <label class="fs-12 muted" style="display:block;margin-bottom:6px">Expedition Slots</label>
+        <label class="fs-12 muted" style="display:block;margin-bottom:6px">{{ t('opt.slots_label') }}</label>
         <input type="number" id="inp-slots" value="7" min="1" max="9"
                style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line-2);
                       background:rgba(0,0,0,.25);color:var(--text-0);" />
       </div>
       <div>
-        <label class="fs-12 muted" style="display:block;margin-bottom:6px">Astrophysics Level <span class="muted">(sets max ships/slot)</span></label>
+        <label class="fs-12 muted" style="display:block;margin-bottom:6px">{{ t('opt.astro_label') }} <span class="muted">{{ t('opt.astro_sub') }}</span></label>
         <div style="display:flex;gap:8px;align-items:center">
           <select id="inp-astro"
                   style="flex:1;padding:10px 12px;border-radius:10px;border:1px solid var(--line-2);
@@ -119,18 +117,18 @@
       </div>
     </div>
 
-    <button class="btn" id="btn-optimize" style="min-width:180px">Calculate Optimal Fleet</button>
+    <button class="btn" id="btn-optimize" style="min-width:180px">{{ t('opt.calc_btn') }}</button>
   </div>
 
   <!-- Paste import modal -->
   <div id="paste-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;display:none;align-items:center;justify-content:center">
     <div class="card" style="width:min(600px,95vw);padding:24px;max-height:80vh;display:flex;flex-direction:column">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-        <h2 style="margin:0">Paste Fleet from Game</h2>
+        <h2 style="margin:0">{{ t('opt.paste_title') }}</h2>
         <button id="paste-close" style="background:none;border:none;color:var(--text-1);font-size:1.4rem;cursor:pointer">✕</button>
       </div>
       <p class="muted fs-12" style="margin-bottom:12px">
-        In OGX, go to <strong>Fleet → Send Expedition</strong>, then select-all and copy the ship list. Paste it below.
+        {{ t('opt.paste_sub') }}
       </p>
       <textarea id="paste-text" rows="10"
         placeholder="Kleiner Transporter ... 26.706.289&#10;Großer Transporter ... 4.519.742&#10;..."
@@ -138,8 +136,8 @@
                background:rgba(0,0,0,.3);color:var(--text-0);font-family:var(--font-mono);
                font-size:12px;resize:vertical;flex:1"></textarea>
       <div style="display:flex;gap:10px;margin-top:16px">
-        <button class="btn" id="paste-confirm" style="flex:1">✓ Import Fleet</button>
-        <button class="btn ghost" id="paste-cancel">Cancel</button>
+        <button class="btn" id="paste-confirm" style="flex:1">{{ t('opt.paste_confirm') }}</button>
+        <button class="btn ghost" id="paste-cancel">{{ t('opt.paste_cancel') }}</button>
       </div>
       <div id="paste-result" class="muted fs-12" style="margin-top:8px"></div>
     </div>
@@ -150,16 +148,16 @@
 
     <!-- Mode tabs -->
     <div style="display:flex;gap:8px;margin-bottom:20px">
-      <button class="btn mode-tab active" data-mode="safe"       style="flex:1">🛡 Safe</button>
-      <button class="btn mode-tab"        data-mode="balanced"   style="flex:1">⚖ Balanced</button>
-      <button class="btn mode-tab"        data-mode="aggressive" style="flex:1">⚔ Aggressive</button>
+      <button class="btn mode-tab active" data-mode="safe"       style="flex:1">{{ t('opt.mode_safe') }}</button>
+      <button class="btn mode-tab"        data-mode="balanced"   style="flex:1">{{ t('opt.mode_balanced') }}</button>
+      <button class="btn mode-tab"        data-mode="aggressive" style="flex:1">{{ t('opt.mode_aggressive') }}</button>
     </div>
 
     <!-- Safe -->
     <div id="panel-safe" class="mode-panel">
       <div class="card" style="padding:24px;margin-bottom:16px;border-color:rgba(52,211,153,.3)">
-        <h2 style="color:var(--good);margin-bottom:4px">🛡 Safe Mode</h2>
-        <p class="muted fs-12" style="margin-bottom:20px">Full cargo coverage. Prioritises GT to collect every bit of loot. Minimal combat risk.</p>
+        <h2 style="color:var(--good);margin-bottom:4px">{{ t('opt.safe_title') }}</h2>
+        <p class="muted fs-12" style="margin-bottom:20px">{{ t('opt.safe_desc') }}</p>
         <div id="comp-safe" style="margin-bottom:20px"></div>
         <div class="mode-kpis" id="kpis-safe"></div>
         <div id="warn-safe" class="warn-box" style="display:none;margin-top:16px"></div>
@@ -169,8 +167,8 @@
     <!-- Balanced -->
     <div id="panel-balanced" class="mode-panel" style="display:none">
       <div class="card" style="padding:24px;margin-bottom:16px;border-color:rgba(96,165,250,.3)">
-        <h2 style="color:var(--acc-1);margin-bottom:4px">⚖ Balanced Mode</h2>
-        <p class="muted fs-12" style="margin-bottom:20px">80% cargo coverage + combat ships in remaining slots. Best trade-off between loot and pirate survival. Recommended.</p>
+        <h2 style="color:var(--acc-1);margin-bottom:4px">{{ t('opt.bal_title') }}</h2>
+        <p class="muted fs-12" style="margin-bottom:20px">{{ t('opt.bal_desc') }}</p>
         <div id="comp-balanced" style="margin-bottom:20px"></div>
         <div class="mode-kpis" id="kpis-balanced"></div>
         <div id="warn-balanced" class="warn-box" style="display:none;margin-top:16px"></div>
@@ -180,8 +178,8 @@
     <!-- Aggressive -->
     <div id="panel-aggressive" class="mode-panel" style="display:none">
       <div class="card" style="padding:24px;margin-bottom:16px;border-color:rgba(248,113,113,.3)">
-        <h2 style="color:#f87171;margin-bottom:4px">⚔ Aggressive Mode</h2>
-        <p class="muted fs-12" style="margin-bottom:20px">50% cargo + massive combat fleet. Higher loot tier rolls, near-certain pirate wins. Risk: some loot may be uncollectable.</p>
+        <h2 style="color:#f87171;margin-bottom:4px">{{ t('opt.agg_title') }}</h2>
+        <p class="muted fs-12" style="margin-bottom:20px">{{ t('opt.agg_desc') }}</p>
         <div id="comp-aggressive" style="margin-bottom:20px"></div>
         <div class="mode-kpis" id="kpis-aggressive"></div>
         <div id="warn-aggressive" class="warn-box" style="display:none;margin-top:16px"></div>
@@ -194,7 +192,7 @@
     <div id="suggestions-box" style="display:none;margin-bottom:16px">
       <div class="card" style="padding:16px 20px;border-color:rgba(251,191,36,.2)">
         <div class="fs-12 muted" style="margin-bottom:10px;letter-spacing:.06em;text-transform:uppercase">
-          💡 Recommended Additions
+          {{ t('opt.suggestions') }}
         </div>
         <div id="suggestions-list"></div>
       </div>
@@ -204,7 +202,7 @@
     <div id="suggestions-box" style="display:none">
       <div class="card" style="padding:20px;border-color:rgba(192,132,252,.2)">
         <div class="fs-12 muted" style="margin-bottom:12px;letter-spacing:.06em;text-transform:uppercase">
-          💡 To Improve — What to Add per Slot
+          {{ t('opt.suggestions') }}
         </div>
         <div id="suggestions-list"></div>
       </div>
@@ -259,7 +257,7 @@
     for(const [ship, cnt] of Object.entries(ships)){
       const cargo = (CARGO_MAP[ship]||0)*cnt;
       const isGT = ship.includes("Transporter");
-      const shipEN = SHIP_DISPLAY[ship] || ship;
+      const shipEN = (window.I18N && window.I18N["ship."+ship]) || SHIP_DISPLAY[ship] || ship;
       html += `<tr>
         <td style="padding:7px 10px;font-size:13px">${shipEN}</td>
         <td style="text-align:right;padding:7px 10px;font-weight:700;font-family:var(--font-mono)">${cnt.toLocaleString("de-DE")}</td>
@@ -276,7 +274,7 @@
     const covColor = d.cargo_coverage >= 90 ? "var(--good)" : d.cargo_coverage >= 60 ? "#fbbf24" : "#f87171";
     el.innerHTML = `
       <div class="mode-kpi">
-        <div class="mode-kpi__label">Ships / Slot</div>
+        <div class="mode-kpi__label">'+(window.I18N['opt.kpi_ships']||'Ships / Slot')+'
         <div class="mode-kpi__value">${(d.total_count||0).toLocaleString("de-DE")}</div>
       </div>
       <div class="mode-kpi">
@@ -328,7 +326,7 @@
   // Apply English labels to all ship inputs
   document.querySelectorAll(".ship-label").forEach(lbl => {
     const de = lbl.dataset.de;
-    if (SHIP_DISPLAY[de]) lbl.textContent = SHIP_DISPLAY[de];
+    lbl.textContent = (window.I18N && window.I18N["ship."+de]) || SHIP_DISPLAY[de] || de;
   });
 
   const SHIP_NAME_MAP = {
@@ -424,14 +422,14 @@
     const parsed = parseGamePaste(pasteText.value);
     const count  = Object.keys(parsed).length;
     if (!count) {
-      pasteResult.textContent = "⚠ No ships found — copy the full fleet selection page from OGX.";
+      pasteResult.textContent = "'+(window.I18N['opt.no_ships_found']||'⚠ No ships found')+'";
       pasteResult.style.color = "#f87171";
       return;
     }
     document.querySelectorAll(".ship-input").forEach(inp => {
       inp.value = parsed[inp.dataset.ship] || 0;
     });
-    pasteResult.textContent = `✓ Imported ${count} ship types`;
+    pasteResult.textContent = (window.I18N['opt.imported_ships']||'✓ Imported {count} ship types').replace('{count}', count);
     pasteResult.style.color = "var(--good)";
     setTimeout(() => { pasteModal.style.display = "none"; }, 900);
   });
@@ -453,7 +451,7 @@
   function syncAstro(){
     const v = astroSel.value;
     inpMax.value = v;
-    astroDisplay.textContent = "cap: " + parseInt(v).toLocaleString("de-DE");
+    astroDisplay.textContent = (window.I18N['opt.cap_label']||'cap:')+' ' + parseInt(v).toLocaleString("de-DE");
     const s = astroSel.options[astroSel.selectedIndex].dataset.slots;
     if(s) document.getElementById("inp-slots").value = s;
   }
@@ -473,7 +471,7 @@
     });
 
     const btn = document.getElementById("btn-optimize");
-    btn.textContent = "Calculating…";
+    btn.textContent = (window.I18N['opt.calculating']||'Calculating…');
     btn.disabled = true;
 
     try {
@@ -543,7 +541,7 @@
       document.getElementById("opt-error-pre").textContent = "Error: "+e.message;
       document.getElementById("opt-error-pre").style.display="block";
     } finally {
-      btn.textContent = "Calculate Optimal Fleet";
+      btn.textContent = (window.I18N['opt.calc_btn']||'Calculate Optimal Fleet');
       btn.disabled = false;
     }
   });
@@ -560,8 +558,8 @@
     fleet["__max"]   = parseInt(document.getElementById("inp-max").value)||15010000;
     try { localStorage.setItem(FLEET_KEY, JSON.stringify(fleet)); } catch {}
     const btn = document.getElementById("btn-save-fleet");
-    btn.textContent = "✓ Saved!";
-    setTimeout(() => { btn.textContent = "💾 Save Fleet"; }, 1500);
+    btn.textContent = (window.I18N['opt.saved']||'✓ Saved!');
+    setTimeout(() => { btn.textContent = (window.I18N['opt.save']||'💾 Save Fleet'); }, 1500);
   }
 
   function loadFleet() {

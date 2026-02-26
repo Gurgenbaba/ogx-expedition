@@ -3,36 +3,36 @@
 {% block content %}
 <div class="page-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
   <div>
-    <h1 class="page-title">Smuggler Codes</h1>
-    <p class="muted fs-12">Codes found during expeditions. Redeem them in the OGame market.</p>
+    <h1 class="page-title">{{ t('codes.title') }}</h1>
+    <p class="muted fs-12">{{ t('codes.subtitle') }}</p>
   </div>
   <div style="display:flex;gap:8px;align-items:center;">
-    <span class="pill">{{ pending|length }} pending</span>
-    <span class="pill muted">{{ redeemed|length }} redeemed</span>
+    <span class="pill">{{ t('codes.pending_count', n=pending|length) }}</span>
+    <span class="pill muted">{{ t('codes.redeemed_count', n=redeemed|length) }}</span>
   </div>
 </div>
 
 {% if not pending and not redeemed %}
 <div class="card" style="text-align:center;padding:48px 24px;">
   <div style="font-size:2rem;margin-bottom:12px;">📦</div>
-  <div class="fs-14 muted">No smuggler codes found yet.</div>
-  <div class="fs-12 muted" style="margin-top:6px;">They are automatically collected when you import expedition messages.</div>
+  <div class="fs-14 muted">{{ t('codes.empty_title') }}</div>
+  <div class="fs-12 muted" style="margin-top:6px;">{{ t('codes.empty_sub') }}</div>
 </div>
 {% endif %}
 
 {% if pending %}
-<div class="section-title" style="margin-bottom:12px;font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);">Pending — not yet redeemed</div>
+<div class="section-title" style="margin-bottom:12px;font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);">{{ t('codes.section_pending') }}</div>
 <div class="codes-grid" id="pending-grid">
   {% for c in pending %}
   <div class="code-card" id="card-{{ c.id }}">
-    <div class="code-card__tier tier-{{ c.tier or 1 }}">Tier {{ c.tier or '?' }}</div>
+    <div class="code-card__tier tier-{{ c.tier or 1 }}">{% if c.tier %}{{ t('codes.tier', n=c.tier) }}{% else %}{{ t('codes.tier_unknown') }}{% endif %}</div>
     <div class="code-card__code">{{ c.code }}</div>
     <div class="code-card__meta muted fs-12">
       Exp #{{ c.exp_number or '—' }}
       {% if c.found_at %}· {{ c.found_at.strftime('%d.%m.%Y') }}{% endif %}
     </div>
     <div class="code-card__actions">
-      <button class="btn btn-sm" onclick="markRedeemed({{ c.id }})">✓ Mark redeemed</button>
+      <button class="btn btn-sm" onclick="markRedeemed({{ c.id }})">{{ t('codes.mark_redeemed') }}</button>
       <button class="btn btn-sm ghost danger" onclick="deleteCode({{ c.id }})" title="Delete">✕</button>
     </div>
   </div>
@@ -41,19 +41,19 @@
 {% endif %}
 
 {% if redeemed %}
-<div class="section-title" style="margin-top:32px;margin-bottom:12px;font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);">Redeemed</div>
+<div class="section-title" style="margin-top:32px;margin-bottom:12px;font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);">{{ t('codes.section_redeemed') }}</div>
 <div class="codes-grid redeemed-grid" id="redeemed-grid">
   {% for c in redeemed %}
   <div class="code-card redeemed" id="card-{{ c.id }}">
-    <div class="code-card__tier tier-{{ c.tier or 1 }}">Tier {{ c.tier or '?' }}</div>
+    <div class="code-card__tier tier-{{ c.tier or 1 }}">{% if c.tier %}{{ t('codes.tier', n=c.tier) }}{% else %}{{ t('codes.tier_unknown') }}{% endif %}</div>
     <div class="code-card__code">{{ c.code }}</div>
     <div class="code-card__meta muted fs-12">
       Exp #{{ c.exp_number or '—' }}
       {% if c.found_at %}· {{ c.found_at.strftime('%d.%m.%Y') }}{% endif %}
-      {% if c.redeemed_at %}· redeemed {{ c.redeemed_at.strftime('%d.%m.%Y') }}{% endif %}
+      {% if c.redeemed_at %}· {{ t('codes.redeemed_on', date=c.redeemed_at.strftime('%d.%m.%Y')) }}{% endif %}
     </div>
     <div class="code-card__actions">
-      <button class="btn btn-sm ghost" onclick="markUnredeemed({{ c.id }})">↩ Undo</button>
+      <button class="btn btn-sm ghost" onclick="markUnredeemed({{ c.id }})">{{ t('codes.undo') }}</button>
       <button class="btn btn-sm ghost danger" onclick="deleteCode({{ c.id }})" title="Delete">✕</button>
     </div>
   </div>
@@ -123,7 +123,7 @@ async function markUnredeemed(id) {
   if ((await res.json()).ok) location.reload();
 }
 async function deleteCode(id) {
-  if (!confirm('Delete this code?')) return;
+  if (!confirm(window.I18N && window.I18N['codes.confirm_delete'] || 'Delete this code?')) return;
   const res = await fetch(`/codes/${id}`, { method: 'DELETE' });
   if ((await res.json()).ok) {
     const card = document.getElementById('card-' + id);

@@ -3,31 +3,31 @@
 {% block content %}
 
 <div style="max-width:900px;margin:0 auto">
-  <h1 style="margin-bottom:4px">💎 Dark Matter Tracker</h1>
-  <p class="muted fs-12" style="margin-bottom:24px">Dark Matter found across all your expeditions</p>
+  <h1 style="margin-bottom:4px">{{ t('dm.title') }}</h1>
+  <p class="muted fs-12" style="margin-bottom:24px">{{ t('dm.subtitle') }}</p>
 
   <!-- KPI row -->
   <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;margin-bottom:28px">
 
     <div class="card" style="padding:18px 20px">
-      <div class="fs-12 muted" style="margin-bottom:4px">Total DM Found</div>
+      <div class="fs-12 muted" style="margin-bottom:4px">{{ t('dm.kpi_total') }}</div>
       <div style="font-size:1.6rem;font-weight:700;color:#a78bfa">{{ "{:,}".format(total_dm).replace(",",".") }}</div>
     </div>
 
     <div class="card" style="padding:18px 20px">
-      <div class="fs-12 muted" style="margin-bottom:4px">Bonus DM (Commander)</div>
+      <div class="fs-12 muted" style="margin-bottom:4px">{{ t('dm.kpi_bonus') }}</div>
       <div style="font-size:1.6rem;font-weight:700;color:#818cf8">{{ "{:,}".format(total_bonus).replace(",",".") }}</div>
     </div>
 
     <div class="card" style="padding:18px 20px">
-      <div class="fs-12 muted" style="margin-bottom:4px">Avg DM / Expedition</div>
+      <div class="fs-12 muted" style="margin-bottom:4px">{{ t('dm.kpi_avg') }}</div>
       <div style="font-size:1.6rem;font-weight:700;color:#c4b5fd">{{ "{:,}".format(dm_per_expo).replace(",",".") }}</div>
     </div>
 
     <div class="card" style="padding:18px 20px">
-      <div class="fs-12 muted" style="margin-bottom:4px">DM Find Rate</div>
+      <div class="fs-12 muted" style="margin-bottom:4px">{{ t('dm.kpi_rate') }}</div>
       <div style="font-size:1.6rem;font-weight:700;color:#a78bfa">{{ dm_rate }}%</div>
-      <div class="fs-12 muted">{{ dm_expos_count }} of {{ all_exps_count }} expos</div>
+      <div class="fs-12 muted">{{ t('dm.kpi_rate_sub', dm_count=dm_expos_count, all_count=all_exps_count) }}</div>
     </div>
 
   </div>
@@ -35,10 +35,10 @@
   <!-- Weekly chart -->
   <div class="card" style="padding:20px 24px;margin-bottom:20px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-      <h2 style="margin:0">Weekly DM</h2>
+      <h2 style="margin:0">{{ t('dm.chart_title') }}</h2>
       <div style="display:flex;gap:8px">
-        <button class="btn btn-sm ghost active-period" data-period="weekly" style="border-color:rgba(167,139,250,.5)">Weekly</button>
-        <button class="btn btn-sm ghost" data-period="monthly">Monthly</button>
+        <button class="btn btn-sm ghost active-period" data-period="weekly" style="border-color:rgba(167,139,250,.5)">{{ t('dm.btn_weekly') }}</button>
+        <button class="btn btn-sm ghost" data-period="monthly">{{ t('dm.btn_monthly') }}</button>
       </div>
     </div>
     <canvas id="dm-chart" height="220"></canvas>
@@ -46,14 +46,14 @@
 
   <!-- Data table -->
   <div class="card" style="padding:20px 24px">
-    <h2 style="margin:0 0 14px">Breakdown</h2>
+    <h2 style="margin:0 0 14px">{{ t('dm.table_title') }}</h2>
     <div id="dm-table-weekly">
       <table style="width:100%;border-collapse:collapse;font-size:13px">
         <thead>
           <tr style="border-bottom:1px solid var(--line-2)">
-            <th style="text-align:left;padding:8px 10px;color:var(--text-2);font-weight:500">Week</th>
-            <th style="text-align:right;padding:8px 10px;color:var(--text-2);font-weight:500">DM Found</th>
-            <th style="text-align:right;padding:8px 10px;color:var(--text-2);font-weight:500">Bar</th>
+            <th style="text-align:left;padding:8px 10px;color:var(--text-2);font-weight:500">{{ t('dm.col_week') }}</th>
+            <th style="text-align:right;padding:8px 10px;color:var(--text-2);font-weight:500">{{ t('dm.col_dm') }}</th>
+            <th style="text-align:right;padding:8px 10px;color:var(--text-2);font-weight:500">{{ t('dm.col_bar') }}</th>
           </tr>
         </thead>
         <tbody id="weekly-tbody"></tbody>
@@ -63,9 +63,9 @@
       <table style="width:100%;border-collapse:collapse;font-size:13px">
         <thead>
           <tr style="border-bottom:1px solid var(--line-2)">
-            <th style="text-align:left;padding:8px 10px;color:var(--text-2);font-weight:500">Month</th>
-            <th style="text-align:right;padding:8px 10px;color:var(--text-2);font-weight:500">DM Found</th>
-            <th style="text-align:right;padding:8px 10px;color:var(--text-2);font-weight:500">Bar</th>
+            <th style="text-align:left;padding:8px 10px;color:var(--text-2);font-weight:500">{{ t('dm.col_month') }}</th>
+            <th style="text-align:right;padding:8px 10px;color:var(--text-2);font-weight:500">{{ t('dm.col_dm') }}</th>
+            <th style="text-align:right;padding:8px 10px;color:var(--text-2);font-weight:500">{{ t('dm.col_bar') }}</th>
           </tr>
         </thead>
         <tbody id="monthly-tbody"></tbody>

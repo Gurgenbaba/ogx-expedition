@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ lang or 'en' }}">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="/static/app.css" />
 </head>
 <body>
-  <a href="#main" class="skip-link">Skip to content</a>
+  <a href="#main" class="skip-link">{{ t('nav.skip') }}</a>
 
   <header class="topbar">
     <div class="wrap topbar-inner">
@@ -17,24 +17,33 @@
         <span class="brand-rest">EXPEDITION</span>
       </a>
       <nav class="nav" aria-label="Main navigation">
-        <a href="/" class="{% if active_nav == 'dashboard' %}active{% endif %}">Dashboard</a>
-        <a href="/import" class="{% if active_nav == 'import' %}active{% endif %}">Import</a>
-        <a href="/stats" class="{% if active_nav == 'stats' %}active{% endif %}">Stats</a>
-        <a href="/outcomes" class="{% if active_nav == 'outcomes' %}active{% endif %}">Outcomes</a>
-        <a href="/dm" class="{% if active_nav == 'dm' %}active{% endif %}">💎 DM</a>
-        <a href="/optimizer" class="{% if active_nav == 'optimizer' %}active{% endif %}">Optimizer</a>
+        <a href="/" class="{% if active_nav == 'dashboard' %}active{% endif %}">{{ t('nav.dashboard') }}</a>
+        <a href="/import" class="{% if active_nav == 'import' %}active{% endif %}">{{ t('nav.import') }}</a>
+        <a href="/stats" class="{% if active_nav == 'stats' %}active{% endif %}">{{ t('nav.stats') }}</a>
+        <a href="/outcomes" class="{% if active_nav == 'outcomes' %}active{% endif %}">{{ t('nav.outcomes') }}</a>
+        <a href="/dm" class="{% if active_nav == 'dm' %}active{% endif %}">{{ t('nav.dm') }}</a>
+        <a href="/optimizer" class="{% if active_nav == 'optimizer' %}active{% endif %}">{{ t('nav.optimizer') }}</a>
         <a href="/codes" class="{% if active_nav == 'codes' %}active{% endif %}">
-          Codes{% if pending_codes_count is defined and pending_codes_count > 0 %}<span class="badge-count">{{ pending_codes_count }}</span>{% endif %}
+          {{ t('nav.codes') }}{% if pending_codes_count is defined and pending_codes_count > 0 %}<span class="badge-count">{{ pending_codes_count }}</span>{% endif %}
         </a>
-        <a href="https://ogx-oraclev2-production.up.railway.app" target="_blank" class="muted">← Oracle</a>
+        <a href="https://ogx-oraclev2-production.up.railway.app" target="_blank" class="muted">{{ t('nav.oracle') }}</a>
       </nav>
-      <div class="authbox" id="authbox">
-        {% if user %}
-          <span class="muted fs-12">{{ user.username }}{% if user.is_admin %} (Admin){% endif %}</span>
-          <button class="btn btn-sm ghost" id="btn-logout">Logout</button>
-        {% else %}
-          <button class="btn btn-sm" id="btn-login-open">Login</button>
-        {% endif %}
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="lang-switcher">
+          {% for l in langs %}
+          <button class="lang-btn {% if l.code == lang %}active{% endif %}"
+                  onclick="setLang('{{ l.code }}')"
+                  title="{{ l.code | upper }}">{{ l.flag }} {{ l.label }}</button>
+          {% endfor %}
+        </div>
+        <div class="authbox" id="authbox">
+          {% if user %}
+            <span class="muted fs-12">{{ user.username }}{% if user.is_admin %} (Admin){% endif %}</span>
+            <button class="btn btn-sm ghost" id="btn-logout">{{ t('auth.logout') }}</button>
+          {% else %}
+            <button class="btn btn-sm" id="btn-login-open">{{ t('auth.login') }}</button>
+          {% endif %}
+        </div>
       </div>
     </div>
   </header>
@@ -47,21 +56,21 @@
     <span>OGX Expedition — powered by ogx-oracle</span>
   </footer>
 
-  <div id="auth-modal" class="auth-modal" style="display:none;" role="dialog" aria-modal="true" aria-label="Login">
+  <div id="auth-modal" class="auth-modal" style="display:none;" role="dialog" aria-modal="true">
     <div class="auth-modal__backdrop" id="auth-backdrop"></div>
     <div class="auth-panel">
       <div class="auth-panel__head">
-        <div class="auth-panel__title">Login</div>
+        <div class="auth-panel__title">{{ t('auth.login') }}</div>
         <button class="btn btn-sm ghost" id="btn-login-close">✕</button>
       </div>
       <div class="auth-grid">
         <div class="auth-card">
-          <div class="fs-12 muted" style="margin-bottom:8px">Username</div>
-          <div class="field"><input type="text" id="inp-user" placeholder="username" autocomplete="username" /></div>
-          <div class="fs-12 muted" style="margin-top:10px;margin-bottom:8px">Password</div>
-          <div class="field"><input type="password" id="inp-pass" placeholder="password" autocomplete="current-password" /></div>
+          <div class="fs-12 muted" style="margin-bottom:8px">{{ t('auth.username') }}</div>
+          <div class="field"><input type="text" id="inp-user" placeholder="{{ t('auth.username') | lower }}" autocomplete="username" /></div>
+          <div class="fs-12 muted" style="margin-top:10px;margin-bottom:8px">{{ t('auth.password') }}</div>
+          <div class="field"><input type="password" id="inp-pass" placeholder="{{ t('auth.password') | lower }}" autocomplete="current-password" /></div>
           <div style="margin-top:12px;display:flex;gap:8px;">
-            <button class="btn btn-sm" id="btn-do-login">Login</button>
+            <button class="btn btn-sm" id="btn-do-login">{{ t('auth.login_btn') }}</button>
           </div>
           <div id="auth-error" class="auth-error" style="display:none"></div>
         </div>
@@ -69,7 +78,18 @@
     </div>
   </div>
 
+  <script>window.I18N = {{ i18n_js | tojson | safe }};</script>
   <script src="/static/auth.js"></script>
+  <script>
+    async function setLang(lang) {
+      await fetch('/set-lang', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({lang})
+      });
+      location.reload();
+    }
+  </script>
   {% block scripts %}{% endblock %}
 </body>
 </html>

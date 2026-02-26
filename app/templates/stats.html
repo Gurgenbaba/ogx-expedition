@@ -3,46 +3,46 @@
 {% block content %}
 
 <div class="row between" style="margin-bottom:20px">
-  <h1>Expedition Statistics</h1>
-  <a href="/expeditions/export.csv" class="btn btn-sm ghost" download>⬇ Export CSV</a>
+  <h1>{{ t('stats.title') }}</h1>
+  <a href="/expeditions/export.csv" class="btn btn-sm ghost" download>{{ t('stats.export') }}</a>
 </div>
 
 {% if not stats %}
-<div class="empty-state">No data yet. <a href="/import" class="btn btn-sm" style="margin-left:8px">Import</a></div>
+<div class="empty-state">{{ t('stats.no_data') }} <a href="/import" class="btn btn-sm" style="margin-left:8px">{{ t('stats.import_link') }}</a></div>
 {% else %}
 
 {# ── Summary KPIs ── #}
 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:24px">
-  <div class="card kpi-card"><div class="kpi-label">Total</div><div class="kpi-value">{{ stats.total }}</div></div>
-  <div class="card kpi-card"><div class="kpi-label">Successful</div><div class="kpi-value" style="color:var(--good)">{{ stats.success_count }}</div></div>
-  <div class="card kpi-card"><div class="kpi-label">Loss Events</div><div class="kpi-value" style="color:var(--warn)">{{ stats.loss_event_count }}</div></div>
-  <div class="card kpi-card"><div class="kpi-label">Vanished</div><div class="kpi-value" style="color:var(--bad)">{{ stats.vanished_count }}</div></div>
-  <div class="card kpi-card"><div class="kpi-label">Failed/Empty</div><div class="kpi-value" style="color:var(--text-3)">{{ stats.failed_count }}</div></div>
-  <div class="card kpi-card"><div class="kpi-label">GT Lost Total</div><div class="kpi-value" style="color:var(--warn)">{{ stats.total_gt_lost | fmt_int }}</div></div>
+  <div class="card kpi-card"><div class="kpi-label">{{ t('stats.kpi_total') }}</div><div class="kpi-value">{{ stats.total }}</div></div>
+  <div class="card kpi-card"><div class="kpi-label">{{ t('stats.kpi_success') }}</div><div class="kpi-value" style="color:var(--good)">{{ stats.success_count }}</div></div>
+  <div class="card kpi-card"><div class="kpi-label">{{ t('stats.kpi_loss') }}</div><div class="kpi-value" style="color:var(--warn)">{{ stats.loss_event_count }}</div></div>
+  <div class="card kpi-card"><div class="kpi-label">{{ t('stats.kpi_vanished') }}</div><div class="kpi-value" style="color:var(--bad)">{{ stats.vanished_count }}</div></div>
+  <div class="card kpi-card"><div class="kpi-label">{{ t('stats.kpi_failed') }}</div><div class="kpi-value" style="color:var(--text-3)">{{ stats.failed_count }}</div></div>
+  <div class="card kpi-card"><div class="kpi-label">{{ t('stats.kpi_gt_lost') }}</div><div class="kpi-value" style="color:var(--warn)">{{ stats.total_gt_lost | fmt_int }}</div></div>
 </div>
 
 {# ── Total Resources ── #}
 <div class="card" style="padding:20px;margin-bottom:20px">
-  <h2>Total Resources Gained</h2>
+  <h2>{{ t('stats.res_title') }}</h2>
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-top:8px">
     <div>
-      <div class="fs-12 muted">Metal</div>
+      <div class="fs-12 muted">{{ t('stats.metal') }}</div>
       <div style="font-size:22px;font-weight:700;color:var(--text-0)">{{ stats.total_metal | fmt_num }}</div>
     </div>
     <div>
-      <div class="fs-12 muted">Crystal</div>
+      <div class="fs-12 muted">{{ t('stats.crystal') }}</div>
       <div style="font-size:22px;font-weight:700;color:var(--acc-1)">{{ stats.total_crystal | fmt_num }}</div>
     </div>
     <div>
-      <div class="fs-12 muted">Deuterium</div>
+      <div class="fs-12 muted">{{ t('stats.deut') }}</div>
       <div style="font-size:22px;font-weight:700;color:#67e8f9">{{ stats.total_deut | fmt_num }}</div>
     </div>
     <div>
-      <div class="fs-12 muted">Dark Matter</div>
+      <div class="fs-12 muted">{{ t('stats.dm') }}</div>
       <div style="font-size:22px;font-weight:700;color:#c084fc">{{ stats.total_dm | fmt_num }}</div>
     </div>
     <div>
-      <div class="fs-12 muted">Combined</div>
+      <div class="fs-12 muted">{{ t('stats.combined') }}</div>
       <div style="font-size:22px;font-weight:700;color:var(--good)">{{ stats.total_resources | fmt_num }}</div>
     </div>
   </div>
@@ -50,24 +50,24 @@
 
 {# ── By outcome type ── #}
 <div class="card" style="padding:20px;margin-bottom:20px">
-  <h2>Breakdown by Outcome Type</h2>
+  <h2>{{ t('stats.by_type') }}</h2>
   <div style="overflow-x:auto">
     <table class="table">
       <thead>
         <tr>
-          <th>Type</th>
-          <th style="text-align:right">Count</th>
-          <th style="text-align:right">Metal</th>
-          <th style="text-align:right">Crystal</th>
-          <th style="text-align:right">Deut</th>
-          <th style="text-align:right">DM</th>
-          <th style="text-align:right">GT Lost</th>
+          <th>{{ t('stats.col_type') }}</th>
+          <th style="text-align:right">{{ t('stats.col_count') }}</th>
+          <th style="text-align:right">{{ t('stats.col_metal') }}</th>
+          <th style="text-align:right">{{ t('stats.col_crystal') }}</th>
+          <th style="text-align:right">{{ t('stats.col_deut') }}</th>
+          <th style="text-align:right">{{ t('stats.col_dm') }}</th>
+          <th style="text-align:right">{{ t('stats.col_gt_lost') }}</th>
         </tr>
       </thead>
       <tbody>
         {% for t, d in by_type.items() | sort(attribute="1.count", reverse=true) %}
         <tr>
-          <td><span class="outcome-badge outcome-{{ t }}">{{ t | replace("_"," ") }}</span></td>
+          <td><span class="outcome-badge outcome-{{ t }}">{{ t('outcome.' + t) if t('outcome.' + t) != ('outcome.' + t) else t | replace("_"," ") }}</span></td>
           <td style="text-align:right;font-weight:600">{{ d.count }}</td>
           <td style="text-align:right" class="mono fs-12">{{ d.metal | fmt_num }}</td>
           <td style="text-align:right" class="mono fs-12">{{ d.crystal | fmt_num }}</td>
@@ -85,7 +85,7 @@
 <div class="row gap" style="align-items:flex-start;flex-wrap:wrap;margin-bottom:24px">
   {% if ships_gained %}
   <div class="card" style="flex:1;min-width:260px;padding:20px">
-    <h2>Ships Gained</h2>
+    <h2>{{ t('stats.ships_gained') }}</h2>
     <table class="table" style="margin-top:0">
       <tbody>
         {% for ship, qty in ships_gained.items() %}
@@ -101,7 +101,7 @@
 
   {% if ships_lost %}
   <div class="card" style="flex:1;min-width:260px;padding:20px">
-    <h2>Ships Lost</h2>
+    <h2>{{ t('stats.ships_lost') }}</h2>
     <table class="table" style="margin-top:0">
       <tbody>
         {% for ship, qty in ships_lost.items() %}

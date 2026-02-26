@@ -28,6 +28,7 @@ from .security import (
     create_access_token,
 )
 from .parser import parse_expedition_text
+from .i18n import get_lang, make_translator, get_translations_js, SUPPORTED, FLAG, LABEL
 from .optimizer import optimize_fleet, get_user_stats_summary, OptimizerInput, SHIP_STATS
 
 APP_DIR = Path(__file__).resolve().parent
@@ -87,7 +88,7 @@ def _template(request: Request, name: str, ctx: dict) -> HTMLResponse:
 
 
 async def _template_with_codes(request: Request, name: str, ctx: dict, db, user) -> HTMLResponse:
-    """Like _template but injects pending_codes_count for nav badge."""
+    """Like _template but injects pending_codes_count, t(), lang, and lang switcher info."""
     pending_codes = 0
     if user:
         try:
@@ -97,7 +98,15 @@ async def _template_with_codes(request: Request, name: str, ctx: dict, db, user)
             )).scalar() or 0
         except Exception:
             pass
+
+    lang = get_lang(request)
+    t    = make_translator(lang)
+
     ctx["pending_codes_count"] = pending_codes
+    ctx["t"]      = t
+    ctx["lang"]   = lang
+    ctx["langs"]  = [{"code": c, "flag": FLAG[c], "label": LABEL[c]} for c in SUPPORTED]
+    ctx["i18n_js"] = get_translations_js(lang)
     return _template(request, name, ctx)
 
 
@@ -108,6 +117,20 @@ def _utcnow() -> datetime:
 # ---------------------------------------------------------------------------
 # Health
 # ---------------------------------------------------------------------------
+
+@app.post("/set-lang")
+async def set_lang(request: Request):
+    """Set language preference cookie and redirect back."""
+    from fastapi.responses import Response as FR
+    payload = await request.json()
+    lang = str(payload.get("lang", "en"))
+    if lang not in ("en", "de", "fr"):
+        lang = "en"
+    resp = JSONResponse({"ok": True, "lang": lang})
+    resp.set_cookie("ogx_lang", lang, max_age=60 * 60 * 24 * 365, path="/", samesite="lax")
+    return resp
+
+
 @app.get("/healthz")
 async def healthz():
     return {"ok": True}
