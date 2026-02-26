@@ -82,7 +82,14 @@ CSRF_COOKIE = "ogx_csrf"
 
 
 def _template(request: Request, name: str, ctx: dict) -> HTMLResponse:
-    base = {"request": request}
+    lang = get_lang(request)
+    base = {
+        "request": request,
+        "t":       make_translator(lang),
+        "lang":    lang,
+        "langs":   [{"code": c, "flag": FLAG[c], "label": LABEL[c]} for c in SUPPORTED],
+        "i18n_js": get_translations_js(lang),
+    }
     base.update(ctx)
     return templates.TemplateResponse(request, name, base)
 

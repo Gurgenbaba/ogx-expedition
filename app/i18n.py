@@ -27,13 +27,33 @@ def _load(lang: str) -> dict:
 
 
 def get_lang(request) -> str:
-    """Detect language from cookie, then Accept-Language header."""
+    """Detect language from cookie, then Accept-Language header.
+    
+    Accept-Language example: "de-DE,de;q=0.9,fr;q=0.8,en;q=0.7"
+    We pick the first language tag whose 2-letter code we support.
+    """
     lang = request.cookies.get("ogx_lang", "")
     if lang in SUPPORTED:
         return lang
     al = request.headers.get("accept-language", "")
-    for part in al.lower().split(","):
-        code = part.strip().split(";")[0].strip()[:2]
+    # Sort by q-value (highest first), then match
+    parts = []
+    for part in al.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        if ";q=" in part:
+            tag, q = part.split(";q=", 1)
+            try:
+                q = float(q)
+            except ValueError:
+                q = 0.0
+        else:
+            tag, q = part, 1.0
+        code = tag.strip().split("-")[0].lower()[:2]
+        parts.append((q, code))
+    parts.sort(key=lambda x: -x[0])
+    for _, code in parts:
         if code in SUPPORTED:
             return code
     return DEFAULT
