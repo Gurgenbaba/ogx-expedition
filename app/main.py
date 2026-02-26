@@ -733,3 +733,23 @@ async def delete_code(code_id: int, request: Request):
         await db.delete(sc)
         await db.commit()
         return {"ok": True}
+
+@app.get("/lang/{code}")
+async def set_lang(code: str, request: Request):
+    code = (code or "").strip().lower()[:2]
+    if code not in SUPPORTED:
+        code = "en"
+
+    # zurück zur Seite, von der der User kommt
+    ref = request.headers.get("referer") or "/"
+    resp = RedirectResponse(url=ref, status_code=303)
+
+    resp.set_cookie(
+        "ogx_lang",
+        code,
+        max_age=60 * 60 * 24 * 365,
+        path="/",
+        samesite="lax",
+        secure=True,
+    )
+    return resp

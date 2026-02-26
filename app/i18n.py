@@ -9,6 +9,7 @@ import json
 from functools import lru_cache
 from pathlib import Path
 from typing import Callable
+from urllib.parse import parse_qs
 
 LANG_DIR   = Path(__file__).parent / "lang"
 SUPPORTED  = ("en", "de", "fr")
@@ -26,10 +27,21 @@ def _load(lang: str) -> dict:
     return json.loads(f.read_text("utf-8"))
 
 
+from urllib.parse import parse_qs
+
+from urllib.parse import parse_qs
+
 def get_lang(request) -> str:
-    c = (request.cookies.get("ogx_lang") or "").strip().lower()[:2]
-    if c in SUPPORTED:
-        return c
+    """
+    Priority:
+      1) query param ?lang=de|en|fr
+      2) Accept-Language header
+      3) DEFAULT
+    """
+    # 1) query override like PHP
+    q = request.query_params.get("lang", "").strip().lower()[:2]
+    if q in SUPPORTED:
+        return q
 
     # 2) Accept-Language
     al = request.headers.get("accept-language", "")
@@ -39,15 +51,16 @@ def get_lang(request) -> str:
         if not part:
             continue
         if ";q=" in part:
-            tag, q = part.split(";q=", 1)
+            tag, qv = part.split(";q=", 1)
             try:
-                q = float(q)
+                weight = float(qv)
             except ValueError:
-                q = 0.0
+                weight = 0.0
         else:
-            tag, q = part, 1.0
+            tag, weight = part, 1.0
         code = tag.strip().split("-")[0].lower()[:2]
-        parts.append((q, code))
+        parts.append((weight, code))
+
     parts.sort(key=lambda x: -x[0])
     for _, code in parts:
         if code in SUPPORTED:
