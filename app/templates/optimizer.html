@@ -45,16 +45,22 @@
       {% endfor %}
     </div>
 
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
-      <div style="flex:0 0 200px">
-        <label class="fs-12 muted" style="display:block;margin-bottom:6px">{{ t('opt.slots_label') }}</label>
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;
+                background:rgba(0,0,0,.2);border:1px solid var(--line-1);border-radius:12px;padding:14px 18px;">
+      <div style="display:flex;align-items:center;gap:10px">
+        <label class="fs-12 muted" style="white-space:nowrap">{{ t('opt.slots_label') }}</label>
         <input type="number" id="inp-slots" value="7" min="1" max="9"
-               style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line-2);
-                      background:rgba(0,0,0,.25);color:var(--text-0);" />
+               style="width:64px;padding:6px 10px;border-radius:8px;border:1px solid var(--line-2);
+                      background:rgba(0,0,0,.3);color:var(--text-0);text-align:center;
+                      font-family:var(--font-mono);font-size:1rem;font-weight:700;" />
       </div>
-      <div style="flex:1;padding-top:22px">
-        <span class="muted fs-12" id="astro-cap-display" style="color:var(--text-2)">Max: 15.010.000</span>
+      <div style="width:1px;height:24px;background:var(--line-1)"></div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="fs-12 muted">Max / Slot</span>
+        <span id="astro-cap-display" style="font-family:var(--font-mono);font-weight:700;color:var(--acc-1)">15.010.000</span>
       </div>
+      <div style="flex:1"></div>
+      <span class="fs-12 muted" style="font-style:italic">{{ t('opt.paste') }} {{ t('opt.fleet_sub') }}</span>
       <input type="hidden" id="inp-max" value="15010000" />
     </div>
       </div>
@@ -443,7 +449,7 @@
   function syncAstro(){
     const v = parseInt(document.getElementById("inp-max").value) || 15010000;
     const disp = document.getElementById("astro-cap-display");
-    if (disp) disp.textContent = "Max: " + v.toLocaleString("de-DE");
+    if (disp) disp.textContent = v.toLocaleString("de-DE");
   }
   syncAstro();
 
