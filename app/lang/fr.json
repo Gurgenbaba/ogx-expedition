@@ -207,5 +207,6 @@
   "imported": "importees",
   "duplicates": "doublons",
   "failed": "echouees",
-  "error": "Erreur"
+  "error": "Erreur",
+  "import.placeholder": "25.02 02:14:33\tCommandement de flotte\tRapport d'expedition\nTempete ionique EXPEDITION #179930\n..."
 }

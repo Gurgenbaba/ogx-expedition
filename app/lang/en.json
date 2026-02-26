@@ -207,5 +207,6 @@
   "imported": "imported",
   "duplicates": "duplicates",
   "failed": "failed",
-  "error": "Error"
+  "error": "Error",
+  "import.placeholder": "25.02 02:14:33\tFleet Command\tExpedition Report\nIon Storm EXPEDITION #179930\n..."
 }
