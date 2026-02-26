@@ -268,7 +268,7 @@ async def do_import(request: Request, raw_text: str = Form(...)):
                 pirate_strength=p.pirate_strength,
                 pirate_win_chance=p.pirate_win_chance,
                 pirate_loss_rate=p.pirate_loss_rate,
-                raw_text=p.raw_text[:2000] if p.raw_text else None,
+                raw_text=None,  # parsed data already extracted, no need to store raw
                 dedup_key=p.dedup_key,
             )
 
