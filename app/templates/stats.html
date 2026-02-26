@@ -90,7 +90,7 @@
       <tbody>
         {% for ship, qty in ships_gained.items() %}
         <tr>
-          <td>{{ ship }}</td>
+          <td>{{ t('ship.' + ship) }}</td>
           <td style="text-align:right;color:var(--good);font-weight:600">+{{ qty | fmt_int }}</td>
         </tr>
         {% endfor %}
@@ -106,7 +106,7 @@
       <tbody>
         {% for ship, qty in ships_lost.items() %}
         <tr>
-          <td>{{ ship }}</td>
+          <td>{{ t('ship.' + ship) }}</td>
           <td style="text-align:right;color:var(--bad);font-weight:600">-{{ qty | fmt_int }}</td>
         </tr>
         {% endfor %}
