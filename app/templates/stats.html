@@ -65,9 +65,9 @@
         </tr>
       </thead>
       <tbody>
-        {% for t, d in by_type.items() | sort(attribute="1.count", reverse=true) %}
+        {% for otype, d in by_type.items() | sort(attribute="1.count", reverse=true) %}
         <tr>
-          <td><span class="outcome-badge outcome-{{ t }}">{{ t('outcome.' + t) if t('outcome.' + t) != ('outcome.' + t) else t | replace("_"," ") }}</span></td>
+          <td><span class="outcome-badge outcome-{{ otype }}">{{ t('outcome.' + otype) }}</span></td>
           <td style="text-align:right;font-weight:600">{{ d.count }}</td>
           <td style="text-align:right" class="mono fs-12">{{ d.metal | fmt_num }}</td>
           <td style="text-align:right" class="mono fs-12">{{ d.crystal | fmt_num }}</td>
