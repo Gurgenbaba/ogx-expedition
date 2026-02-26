@@ -249,8 +249,8 @@ def optimize_fleet(inp: OptimizerInput) -> OptimizerResult:
     suggestions: list[dict] = []
 
     # How many ships are already used in the balanced slot?
-    ships_used   = bal_slot.total_count
-    ships_free   = max(0, inp.max_ships - ships_used)
+    ships_used = bal_slot.total_count
+    ships_free = max(0, int(inp.max_ships_per_slot) - ships_used)
 
     # Cargo gap — only suggest if there is room in the slot
     cargo_gap = max(0, int(needed_cargo * 0.80) - bal_slot.total_cargo)
@@ -258,7 +258,7 @@ def optimize_fleet(inp: OptimizerInput) -> OptimizerResult:
         for ship in ["Recycler", "Großer Transporter", "Kleiner Transporter"]:
             cargo_per    = SHIP_STATS[ship]["cargo"]
             needed_ships = min(-(-cargo_gap // cargo_per), ships_free)  # cap to free space
-            avail        = inp.available.get(ship, 0)
+            avail = inp.available_ships.get(ship, 0)
             needed_ships = min(needed_ships, avail) if avail else needed_ships
             if needed_ships > 0:
                 suggestions.append({
@@ -267,7 +267,7 @@ def optimize_fleet(inp: OptimizerInput) -> OptimizerResult:
                     "reason": _sugg_reason("cargo", inp.lang, needed_ships * cargo_per / 1e9, needed_ships, ships_free),
                     "type": "cargo",
                 })
-            break
+                break  # ✅ only break when we actually added a suggestion
 
     # Combat gap
     if bal_win < 70 and ships_free > 0:
@@ -276,7 +276,7 @@ def optimize_fleet(inp: OptimizerInput) -> OptimizerResult:
             for ship in ["Zerstörer", "Schlachtschiff", "Schlachtkreuzer"]:
                 attack_per   = SHIP_STATS[ship]["attack"]
                 needed_ships = min(-(-attack_needed // attack_per), ships_free)
-                avail        = inp.available.get(ship, 0)
+                avail = inp.available_ships.get(ship, 0)
                 needed_ships = min(needed_ships, avail) if avail else needed_ships
                 if needed_ships > 0:
                     suggestions.append({
@@ -285,7 +285,7 @@ def optimize_fleet(inp: OptimizerInput) -> OptimizerResult:
                         "reason": _sugg_reason("combat", inp.lang, 0, needed_ships, ships_free),
                         "type": "combat",
                     })
-                break
+                    break  # ✅ only break when we actually added a suggestion
 
     analysis["suggestions"] = suggestions
 
