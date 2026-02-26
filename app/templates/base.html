@@ -29,12 +29,10 @@
         <a href="https://ogx-oraclev2-production.up.railway.app" target="_blank" class="muted">{{ t('nav.oracle') }}</a>
       </nav>
       <div style="display:flex;align-items:center;gap:8px">
-<div class="authbox" id="authbox">
+        <div class="authbox" id="authbox">
           {% if user %}
             <span class="muted fs-12">{{ user.username }}{% if user.is_admin %} (Admin){% endif %}</span>
             <button class="btn btn-sm ghost" id="btn-logout">{{ t('auth.logout') }}</button>
-          {% else %}
-            <button class="btn btn-sm" id="btn-login-open">{{ t('auth.login') }}</button>
           {% endif %}
         </div>
       </div>
