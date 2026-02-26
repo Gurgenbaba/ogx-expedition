@@ -118,19 +118,6 @@ def _utcnow() -> datetime:
 # Health
 # ---------------------------------------------------------------------------
 
-@app.post("/set-lang")
-async def set_lang(request: Request):
-    """Set language preference cookie and redirect back."""
-    from fastapi.responses import Response as FR
-    payload = await request.json()
-    lang = str(payload.get("lang", "en"))
-    if lang not in ("en", "de", "fr"):
-        lang = "en"
-    resp = JSONResponse({"ok": True, "lang": lang})
-    resp.set_cookie("ogx_lang", lang, max_age=60 * 60 * 24 * 365, path="/", samesite="lax")
-    return resp
-
-
 @app.get("/healthz")
 async def healthz():
     return {"ok": True}

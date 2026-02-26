@@ -29,14 +29,7 @@
         <a href="https://ogx-oraclev2-production.up.railway.app" target="_blank" class="muted">{{ t('nav.oracle') }}</a>
       </nav>
       <div style="display:flex;align-items:center;gap:8px">
-        <div class="lang-switcher">
-          {% for l in langs %}
-          <button class="lang-btn {% if l.code == lang %}active{% endif %}"
-                  onclick="setLang('{{ l.code }}')"
-                  title="{{ l.code | upper }}">{{ l.flag }} {{ l.label }}</button>
-          {% endfor %}
-        </div>
-        <div class="authbox" id="authbox">
+<div class="authbox" id="authbox">
           {% if user %}
             <span class="muted fs-12">{{ user.username }}{% if user.is_admin %} (Admin){% endif %}</span>
             <button class="btn btn-sm ghost" id="btn-logout">{{ t('auth.logout') }}</button>
@@ -80,16 +73,6 @@
 
   <script>window.I18N = {{ i18n_js | tojson | safe }};</script>
   <script src="/static/auth.js"></script>
-  <script>
-    async function setLang(lang) {
-      await fetch('/set-lang', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({lang})
-      });
-      location.reload();
-    }
-  </script>
   {% block scripts %}{% endblock %}
 </body>
 </html>
