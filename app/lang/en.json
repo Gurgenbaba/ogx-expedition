@@ -203,5 +203,9 @@
   "opt.suggestions_ship": "ship",
   "codes.exp_label": "Exp #",
   "opt.sugg_cargo_reason": "adds {cargo} Mrd cargo (+{count} ships, {free} free in slot)",
-  "opt.sugg_combat_reason": "boosts pirate win chance to ~70% (+{count} ships, {free} free in slot)"
+  "opt.sugg_combat_reason": "boosts pirate win chance to ~70% (+{count} ships, {free} free in slot)",
+  "imported": "imported",
+  "duplicates": "duplicates",
+  "failed": "failed",
+  "error": "Error"
 }

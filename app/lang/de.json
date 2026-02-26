@@ -203,5 +203,9 @@
   "opt.suggestions_ship": "Schiff",
   "codes.exp_label": "Expo #",
   "opt.sugg_cargo_reason": "fuegt {cargo} Mrd Ladung hinzu (+{count} Schiffe, {free} frei im Slot)",
-  "opt.sugg_combat_reason": "erhoeht Piraten-Gewinnchance auf ~70% (+{count} Schiffe, {free} frei im Slot)"
+  "opt.sugg_combat_reason": "erhoeht Piraten-Gewinnchance auf ~70% (+{count} Schiffe, {free} frei im Slot)",
+  "imported": "importiert",
+  "duplicates": "Duplikate",
+  "failed": "fehlgeschlagen",
+  "error": "Fehler"
 }

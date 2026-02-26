@@ -203,5 +203,9 @@
   "opt.suggestions_ship": "vaisseau",
   "codes.exp_label": "Exp. #",
   "opt.sugg_cargo_reason": "ajoute {cargo} Mrd cargo (+{count} vaisseaux, {free} libres dans le slot)",
-  "opt.sugg_combat_reason": "améliore la chance de victoire contre les pirates à ~70% (+{count} vaisseaux, {free} libres)"
+  "opt.sugg_combat_reason": "améliore la chance de victoire contre les pirates à ~70% (+{count} vaisseaux, {free} libres)",
+  "imported": "importees",
+  "duplicates": "doublons",
+  "failed": "echouees",
+  "error": "Erreur"
 }

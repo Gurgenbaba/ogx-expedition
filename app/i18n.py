@@ -2,7 +2,7 @@
 """
 Minimal i18n for OGX Expedition.
 Supports: en, de, fr
-Language priority: cookie ogx_lang > Accept-Language header > default (en)
+Language priority: ?lang= query param > Accept-Language header > default (en)
 """
 from __future__ import annotations
 import json
