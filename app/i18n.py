@@ -27,15 +27,10 @@ def _load(lang: str) -> dict:
 
 
 def get_lang(request) -> str:
-    """Detect language from cookie, then Accept-Language header."""
-    import logging
-    _log = logging.getLogger("ogx.i18n")
-    lang = request.cookies.get("ogx_lang", "")
-    _log.info("i18n: cookie=%r  accept-language=%r", lang, request.headers.get("accept-language",""))
-    if lang in SUPPORTED:
-        return lang
+    """Detect language from Accept-Language header only.
+    Accept-Language example: "de-DE,de;q=0.9,fr;q=0.8,en;q=0.7"
+    """
     al = request.headers.get("accept-language", "")
-    # Sort by q-value (highest first), then match
     parts = []
     for part in al.split(","):
         part = part.strip()

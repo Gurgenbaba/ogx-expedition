@@ -343,6 +343,20 @@
     "todesstern":           "Todesstern",
     "recycler":             "Recycler",
     "spionagesonde":        "Spionagesonde",
+    "pathfinder":           "Pathfinder",
+    // English
+    "small cargo":          "Kleiner Transporter",
+    "large cargo":          "Großer Transporter",
+    "light fighter":        "Leichter Jäger",
+    "heavy fighter":        "Schwerer Jäger",
+    "cruiser":              "Kreuzer",
+    "battleship":           "Schlachtschiff",
+    "battlecruiser":        "Schlachtkreuzer",
+    "bomber":               "Bomber",
+    "destroyer":            "Zerstörer",
+    "deathstar":            "Todesstern",
+    "recycler":             "Recycler",
+    "espionage probe":      "Spionagesonde",
     // French
     "petit transporteur":   "Kleiner Transporter",
     "grand transporteur":   "Großer Transporter",
@@ -357,6 +371,7 @@
     "recycleur":            "Recycler",
     "sonde d'espionnage":   "Spionagesonde",
     "sonde d`espionnage":   "Spionagesonde",
+    "eclaireur":            "Pathfinder",
   };
 
   function parseGamePaste(text) {
@@ -364,13 +379,19 @@
 
     // ALL ship names used as split markers (incl. ignored ones like Kolonieschiff)
     const ALL_SHIPS = [
+      // German
       "Schlachtkreuzer","Schlachtschiff","Kolonieschiff","Solarsatellit",
+      "Kleiner Transporter","Grosser Transporter","Leichter Jaeger","Schwerer Jaeger",
       "Kleiner Transporter","Großer Transporter","Leichter Jäger","Schwerer Jäger",
-      "Kreuzer","Recycler","Spionagesonde","Bomber","Zerstörer","Todesstern",
+      "Kreuzer","Recycler","Spionagesonde","Bomber","Zerstörer","Todesstern","Pathfinder",
+      // English
+      "Small Cargo","Large Cargo","Light Fighter","Heavy Fighter",
+      "Cruiser","Battleship","Battlecruiser","Destroyer","Deathstar",
+      "Espionage Probe","Colony Ship",
       // French
       "Petit transporteur","Grand transporteur","Chasseur léger","Chasseur lourd",
       "Croiseur","Vaisseau de bataille","Traqueur","Bombardier","Destructeur",
-      "Étoile de la mort","Recycleur","Sonde d'espionnage",
+      "Étoile de la mort","Recycleur","Sonde d'espionnage","Eclaireur",
     ];
 
     // Sort longest first so "Schlachtkreuzer" matches before "Schlachtschiff"
