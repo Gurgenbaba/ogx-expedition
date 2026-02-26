@@ -45,75 +45,18 @@
       {% endfor %}
     </div>
 
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
-      <div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+      <div style="flex:0 0 200px">
         <label class="fs-12 muted" style="display:block;margin-bottom:6px">{{ t('opt.slots_label') }}</label>
         <input type="number" id="inp-slots" value="7" min="1" max="9"
                style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line-2);
                       background:rgba(0,0,0,.25);color:var(--text-0);" />
       </div>
-      <div>
-        <label class="fs-12 muted" style="display:block;margin-bottom:6px">{{ t('opt.astro_label') }} <span class="muted">{{ t('opt.astro_sub') }}</span></label>
-        <div style="display:flex;gap:8px;align-items:center">
-          <select id="inp-astro"
-                  style="flex:1;padding:10px 12px;border-radius:10px;border:1px solid var(--line-2);
-                         background:rgba(0,0,0,.25);color:var(--text-0);">
-            <option value="25000" data-slots="2">Lvl 1 — 25.000 (2 slots)</option>
-            <option value="30000" data-slots="2">Lvl 2 — 30.000 (2 slots)</option>
-            <option value="35000" data-slots="2">Lvl 3 — 35.000 (2 slots)</option>
-            <option value="40000" data-slots="3">Lvl 4 — 40.000 (3 slots)</option>
-            <option value="45000" data-slots="3">Lvl 5 — 45.000 (3 slots)</option>
-            <option value="55000" data-slots="3">Lvl 6 — 55.000 (3 slots)</option>
-            <option value="65000" data-slots="3">Lvl 7 — 65.000 (3 slots)</option>
-            <option value="75000" data-slots="3">Lvl 8 — 75.000 (3 slots)</option>
-            <option value="90000" data-slots="4">Lvl 9 — 90.000 (4 slots)</option>
-            <option value="105000" data-slots="4">Lvl 10 — 105.000 (4 slots)</option>
-            <option value="125000" data-slots="4">Lvl 11 — 125.000 (4 slots)</option>
-            <option value="145000" data-slots="4">Lvl 12 — 145.000 (4 slots)</option>
-            <option value="170000" data-slots="4">Lvl 13 — 170.000 (4 slots)</option>
-            <option value="205000" data-slots="4">Lvl 14 — 205.000 (4 slots)</option>
-            <option value="240000" data-slots="4">Lvl 15 — 240.000 (4 slots)</option>
-            <option value="285000" data-slots="5">Lvl 16 — 285.000 (5 slots)</option>
-            <option value="335000" data-slots="5">Lvl 17 — 335.000 (5 slots)</option>
-            <option value="395000" data-slots="5">Lvl 18 — 395.000 (5 slots)</option>
-            <option value="465000" data-slots="5">Lvl 19 — 465.000 (5 slots)</option>
-            <option value="550000" data-slots="5">Lvl 20 — 550.000 (5 slots)</option>
-            <option value="645000" data-slots="5">Lvl 21 — 645.000 (5 slots)</option>
-            <option value="765000" data-slots="5">Lvl 22 — 765.000 (5 slots)</option>
-            <option value="900000" data-slots="5">Lvl 23 — 900.000 (5 slots)</option>
-            <option value="1060000" data-slots="5">Lvl 24 — 1.060.000 (5 slots)</option>
-            <option value="1255000" data-slots="6">Lvl 25 — 1.255.000 (6 slots)</option>
-            <option value="1480000" data-slots="6">Lvl 26 — 1.480.000 (6 slots)</option>
-            <option value="1745000" data-slots="6">Lvl 27 — 1.745.000 (6 slots)</option>
-            <option value="2060000" data-slots="6">Lvl 28 — 2.060.000 (6 slots)</option>
-            <option value="2430000" data-slots="6">Lvl 29 — 2.430.000 (6 slots)</option>
-            <option value="2865000" data-slots="6">Lvl 30 — 2.865.000 (6 slots)</option>
-            <option value="3385000" data-slots="6">Lvl 31 — 3.385.000 (6 slots)</option>
-            <option value="3995000" data-slots="6">Lvl 32 — 3.995.000 (6 slots)</option>
-            <option value="4710000" data-slots="6">Lvl 33 — 4.710.000 (6 slots)</option>
-            <option value="5560000" data-slots="6">Lvl 34 — 5.560.000 (6 slots)</option>
-            <option value="6560000" data-slots="6">Lvl 35 — 6.560.000 (6 slots)</option>
-            <option value="7740000" data-slots="7">Lvl 36 — 7.740.000 (7 slots)</option>
-            <option value="9130000" data-slots="7">Lvl 37 — 9.130.000 (7 slots)</option>
-            <option value="10780000" data-slots="7">Lvl 38 — 10.780.000 (7 slots)</option>
-            <option value="12720000" data-slots="7">Lvl 39 — 12.720.000 (7 slots)</option>
-            <option value="15010000" data-slots="7" selected>Lvl 40 — 15.010.000 (7 slots)</option>
-            <option value="17710000" data-slots="7">Lvl 41 — 17.710.000 (7 slots)</option>
-            <option value="20895000" data-slots="7">Lvl 42 — 20.895.000 (7 slots)</option>
-            <option value="24660000" data-slots="7">Lvl 43 — 24.660.000 (7 slots)</option>
-            <option value="29095000" data-slots="7">Lvl 44 — 29.095.000 (7 slots)</option>
-            <option value="34335000" data-slots="7">Lvl 45 — 34.335.000 (7 slots)</option>
-            <option value="40515000" data-slots="7">Lvl 46 — 40.515.000 (7 slots)</option>
-            <option value="47805000" data-slots="7">Lvl 47 — 47.805.000 (7 slots)</option>
-            <option value="56410000" data-slots="7">Lvl 48 — 56.410.000 (7 slots)</option>
-            <option value="66565000" data-slots="8">Lvl 49 — 66.565.000 (8 slots)</option>
-            <option value="78545000" data-slots="8">Lvl 50 — 78.545.000 (8 slots)</option>
-            <option value="92685000" data-slots="8">Lvl 51 — 92.685.000 (8 slots)</option>
-            <option value="109370000" data-slots="8">Lvl 52 — 109.370.000 (8 slots)</option>
-          </select>
-          <span class="muted fs-12" id="astro-cap-display" style="white-space:nowrap">cap: 15.010.000</span>
-        </div>
-        <input type="hidden" id="inp-max" value="15010000" />
+      <div style="flex:1;padding-top:22px">
+        <span class="muted fs-12" id="astro-cap-display" style="color:var(--text-2)">Max: 15.010.000</span>
+      </div>
+      <input type="hidden" id="inp-max" value="15010000" />
+    </div>
       </div>
     </div>
 
@@ -377,6 +320,22 @@
   function parseGamePaste(text) {
     const result = {};
 
+    // --- Parse expedition slots: "Expeditionen: 0 / 7" or "Expeditions: 0 / 7" or "Expéditions: 0 / 7"
+    const slotsMatch = text.match(/(?:Expeditionen|Expeditions|Exp[ée]ditions)\s*:\s*\d+\s*\/\s*(\d+)/i);
+    if (slotsMatch) {
+      result.__slots = parseInt(slotsMatch[1]);
+    }
+
+    // --- Parse max ships: "Maximale Schiffe pro Expedition: 15.010.000"
+    //     or "Maximum ships per expedition: 15,010,000"
+    //     or "Nombre maximum de vaisseaux par expédition: 15.010.000"
+    const maxMatch = text.match(/(?:Maximale Schiffe pro Expedition|Maximum ships per expedition|Nombre maximum de vaisseaux[^:]*)\s*:\s*([\d.,]+)/i);
+    if (maxMatch) {
+      // Handle both "15.010.000" (DE) and "15,010,000" (EN) formats
+      const rawMax = maxMatch[1].replace(/\./g, "").replace(/,/g, "");
+      result.__max = parseInt(rawMax) || 0;
+    }
+
     // ALL ship names used as split markers (incl. ignored ones like Kolonieschiff)
     const ALL_SHIPS = [
       // German
@@ -441,18 +400,33 @@
 
   document.getElementById("paste-confirm").addEventListener("click", () => {
     const parsed = parseGamePaste(pasteText.value);
-    const count  = Object.keys(parsed).length;
-    if (!count) {
-      pasteResult.textContent = "'+(window.I18N['opt.no_ships_found']||'⚠ No ships found')+'";
+    const shipCount = Object.keys(parsed).filter(k => !k.startsWith("__")).length;
+    if (!shipCount) {
+      pasteResult.textContent = (window.I18N["opt.no_ships_found"] || "No ships found");
       pasteResult.style.color = "#f87171";
       return;
     }
+    // Apply ship counts
     document.querySelectorAll(".ship-input").forEach(inp => {
       inp.value = parsed[inp.dataset.ship] || 0;
     });
-    pasteResult.textContent = (window.I18N['opt.imported_ships']||'✓ Imported {count} ship types').replace('{count}', count);
+    // Auto-set expedition slots
+    if (parsed.__slots) {
+      document.getElementById("inp-slots").value = parsed.__slots;
+    }
+    // Auto-set max ships + sync astro dropdown to closest match
+    if (parsed.__max) {
+      document.getElementById("inp-max").value = parsed.__max;
+      document.getElementById("inp-max").value = parsed.__max;
+      syncAstro();
+      if (parsed.__slots) document.getElementById("inp-slots").value = parsed.__slots;
+    }
+    let msg = (window.I18N["opt.imported_ships"] || "Imported {count} ship types").replace("{count}", shipCount);
+    if (parsed.__slots) msg += "  |  Slots: " + parsed.__slots;
+    if (parsed.__max)   msg += "  |  Max: " + parseInt(parsed.__max).toLocaleString("de-DE");
+    pasteResult.textContent = "✓ " + msg;
     pasteResult.style.color = "var(--good)";
-    setTimeout(() => { pasteModal.style.display = "none"; }, 900);
+    setTimeout(() => { pasteModal.style.display = "none"; }, 1600);
   });
 
   // Tab switching
@@ -466,17 +440,11 @@
   });
 
   // Sync astro level dropdown → hidden max input
-  const astroSel = document.getElementById("inp-astro");
-  const astroDisplay = document.getElementById("astro-cap-display");
-  const inpMax = document.getElementById("inp-max");
   function syncAstro(){
-    const v = astroSel.value;
-    inpMax.value = v;
-    astroDisplay.textContent = (window.I18N['opt.cap_label']||'cap:')+' ' + parseInt(v).toLocaleString("de-DE");
-    const s = astroSel.options[astroSel.selectedIndex].dataset.slots;
-    if(s) document.getElementById("inp-slots").value = s;
+    const v = parseInt(document.getElementById("inp-max").value) || 15010000;
+    const disp = document.getElementById("astro-cap-display");
+    if (disp) disp.textContent = "Max: " + v.toLocaleString("de-DE");
   }
-  astroSel.addEventListener("change", syncAstro);
   syncAstro();
 
   document.getElementById("btn-optimize").addEventListener("click", async () => {
@@ -594,16 +562,7 @@
       if(fleet["__slots"]) document.getElementById("inp-slots").value = fleet["__slots"];
       if(fleet["__max"]) {
         document.getElementById("inp-max").value = fleet["__max"];
-        // sync astro dropdown to closest value
-        const sel = document.getElementById("inp-astro");
-        const saved = parseInt(fleet["__max"]);
-        let closest = null;
-        for(const opt of sel.options){
-          if(!closest || Math.abs(parseInt(opt.value)-saved) < Math.abs(parseInt(closest.value)-saved))
-            closest = opt;
-        }
-        if(closest) { sel.value = closest.value; syncAstro(); }
-        // also restore slots if saved
+        syncAstro();
         if(fleet["__slots"]) document.getElementById("inp-slots").value = fleet["__slots"];
       }
       return true;
