@@ -27,9 +27,11 @@ def _load(lang: str) -> dict:
 
 
 def get_lang(request) -> str:
-    """Detect language from Accept-Language header only.
-    Accept-Language example: "de-DE,de;q=0.9,fr;q=0.8,en;q=0.7"
-    """
+    c = (request.cookies.get("ogx_lang") or "").strip().lower()[:2]
+    if c in SUPPORTED:
+        return c
+
+    # 2) Accept-Language
     al = request.headers.get("accept-language", "")
     parts = []
     for part in al.split(","):
@@ -50,6 +52,7 @@ def get_lang(request) -> str:
     for _, code in parts:
         if code in SUPPORTED:
             return code
+
     return DEFAULT
 
 

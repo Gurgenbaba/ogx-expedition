@@ -15,6 +15,7 @@ OGame mechanics:
 """
 from __future__ import annotations
 from dataclasses import dataclass, field
+from .i18n import make_translator
 
 SHIP_STATS: dict[str, dict] = {
     "Kleiner Transporter":  {"cargo": 5_000,     "attack": 5,       "points": 4,      "type": "cargo"},
@@ -157,6 +158,7 @@ def _sugg_reason(kind: str, lang: str, cargo: float, count: int, free: int) -> s
 
 def optimize_fleet(inp: OptimizerInput) -> OptimizerResult:
     warnings: list[str] = []
+    t = make_translator(inp.lang)
     avg_total_loot = inp.avg_loot_metal + inp.avg_loot_crystal + inp.avg_loot_deut
     needed_cargo   = int(avg_total_loot * 1.2)  # 20% buffer
 
@@ -196,19 +198,13 @@ def optimize_fleet(inp: OptimizerInput) -> OptimizerResult:
 
         mode_warnings = []
         if deficit > 0:
-            mode_warnings.append(
-                f"Cargo deficit: {deficit/1e9:.1f} Mrd short. "
-                "Some loot may not be fully collected."
-            )
+            mode_warnings.append(t("opt.warn_cargo_deficit", short=f"{deficit/1e9:.1f}"))
         if coverage > 300:
-            mode_warnings.append(
-                f"Cargo overcapacity ({coverage}% of needed). "
-                "Consider replacing some cargo ships with combat ships."
-            )
+            mode_warnings.append(t("opt.warn_cargo_overcap", coverage=coverage))
         if slot.total_attack == 0:
-            mode_warnings.append("No combat ships — pirate encounters will be very risky.")
+           mode_warnings.append(t("opt.warn_no_combat"))
         elif win < 40:
-            mode_warnings.append("Low pirate win chance. Consider more combat ships.")
+           mode_warnings.append(t("opt.warn_low_win"))
 
         # GT freed vs safe mode (how many GT you could reduce)
         safe_gt = sum(
