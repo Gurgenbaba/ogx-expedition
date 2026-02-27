@@ -140,7 +140,7 @@ class SmugglerCode(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
     exp_number: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
-    code: Mapped[str] = mapped_column(String(16), nullable=False)        # "0081-9438-3973"
+    code: Mapped[str] = mapped_column(String(255), nullable=False)       # encrypted: "enc:..."
     tier: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # 1, 2, 3
     found_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     redeemed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=text("false"))
