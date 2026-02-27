@@ -64,3 +64,15 @@ def decrypt_code(stored: str) -> str:
         return f.decrypt(token).decode()
     except Exception:
         return "***-****-****"  # decryption failed (wrong key?)
+
+
+def hash_code(plaintext: str) -> str:
+    """
+    Deterministic HMAC-SHA256 of a code for dedup lookups.
+    Same plaintext + same key → same hash (unlike Fernet which uses random IV).
+    Used for ON CONFLICT checks instead of the encrypted value.
+    """
+    import hmac as _hmac
+    import hashlib as _hashlib
+    raw_key = os.environ.get("CODE_ENCRYPTION_KEY", "fallback-dedup-key").strip()
+    return _hmac.new(raw_key.encode(), plaintext.encode(), _hashlib.sha256).hexdigest()

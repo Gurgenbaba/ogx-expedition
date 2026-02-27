@@ -29,7 +29,7 @@ from .security import (
 )
 from .parser import parse_expedition_text
 from .i18n import get_lang, make_translator, get_translations_js, SUPPORTED, FLAG, LABEL
-from .crypto import encrypt_code, decrypt_code
+from .crypto import encrypt_code, decrypt_code, hash_code
 from .optimizer import optimize_fleet, get_user_stats_summary, OptimizerInput, SHIP_STATS
 
 APP_DIR = Path(__file__).resolve().parent
@@ -301,13 +301,14 @@ async def do_import(request: Request, raw_text: str = Form(...)):
                     user_id=uid,
                     exp_number=p.exp_number,
                     code=encrypt_code(p.smuggler_code),
+                    code_hash=hash_code(p.smuggler_code),
                     tier=p.smuggler_tier,
                     found_at=p.returned_at,
                 )
                 if IS_POSTGRES:
                     sc_stmt = pg_insert(SmugglerCode).values(**sc_row)
                     sc_stmt = sc_stmt.on_conflict_do_nothing(
-                        index_elements=["user_id", "code"]
+                        index_elements=["user_id", "code_hash"]
                     )
                     await db.execute(sc_stmt)
                 else:

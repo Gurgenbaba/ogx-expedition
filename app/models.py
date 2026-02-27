@@ -141,6 +141,7 @@ class SmugglerCode(Base):
     user_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
     exp_number: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
     code: Mapped[str] = mapped_column(String(255), nullable=False)       # encrypted: "enc:..."
+    code_hash: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)  # HMAC for dedup
     tier: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # 1, 2, 3
     found_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     redeemed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=text("false"))
@@ -150,5 +151,5 @@ class SmugglerCode(Base):
     __table_args__ = (
         Index("ix_smuggler_user", "user_id"),
         # one code per user (same code can't be found twice)
-        Index("ix_smuggler_user_code", "user_id", "code", unique=True),
+        Index("ix_smuggler_user_code", "user_id", "code_hash", unique=True),
     )
