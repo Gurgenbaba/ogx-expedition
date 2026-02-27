@@ -29,15 +29,14 @@ SHIP_STATS: dict[str, dict] = {
     "Bomber":               {"cargo": 500,       "attack": 1_000,   "points": 75,     "type": "combat"},
     "Zerstörer":            {"cargo": 2_000,     "attack": 2_000,   "points": 110,    "type": "combat"},
     "Todesstern":           {"cargo": 1_000_000, "attack": 200_000, "points": 9_000,  "type": "combat"},
-    "Pathfinder":           {"cargo": 10_000,    "attack": 0,       "points": 23,     "type": "cargo"},
-    "Reaper":               {"cargo": 10_000,    "attack": 2_800,   "points": 140,    "type": "combat"},
+
     "Spionagesonde":        {"cargo": 5,         "attack": 0,       "points": 1,      "type": "support"},
 }
 
 # Priority order for filling cargo budget (best cargo/slot efficiency)
 CARGO_SHIPS   = ["Großer Transporter", "Recycler", "Kleiner Transporter"]
 # Priority order for combat (best attack/slot)
-COMBAT_SHIPS  = ["Reaper", "Zerstörer", "Schlachtschiff", "Bomber", "Schlachtkreuzer", "Kreuzer", "Schwerer Jäger", "Leichter Jäger"]
+COMBAT_SHIPS  = ["Zerstörer", "Schlachtschiff", "Bomber", "Schlachtkreuzer", "Kreuzer", "Schwerer Jäger", "Leichter Jäger"]
 
 
 @dataclass
