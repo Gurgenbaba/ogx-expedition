@@ -29,6 +29,7 @@ from .security import (
 )
 from .parser import parse_expedition_text
 from .i18n import get_lang, make_translator, get_translations_js, SUPPORTED, FLAG, LABEL
+from .crypto import encrypt_code, decrypt_code
 from .optimizer import optimize_fleet, get_user_stats_summary, OptimizerInput, SHIP_STATS
 
 APP_DIR = Path(__file__).resolve().parent
@@ -53,6 +54,7 @@ def _fmt_num(n) -> str:
 
 templates.env.filters["fmt_num"] = _fmt_num
 templates.env.filters["fmt_int"] = lambda n: f"{int(n):,}".replace(",", ".")
+templates.env.filters["decrypt"] = decrypt_code
 
 
 @asynccontextmanager
@@ -298,7 +300,7 @@ async def do_import(request: Request, raw_text: str = Form(...)):
                 sc_row = dict(
                     user_id=uid,
                     exp_number=p.exp_number,
-                    code=p.smuggler_code,
+                    code=encrypt_code(p.smuggler_code),
                     tier=p.smuggler_tier,
                     found_at=p.returned_at,
                 )

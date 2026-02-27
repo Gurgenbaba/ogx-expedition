@@ -26,7 +26,7 @@
   {% for c in pending %}
   <div class="code-card" id="card-{{ c.id }}">
     <div class="code-card__tier tier-{{ c.tier or 1 }}">{% if c.tier %}{{ t('codes.tier', n=c.tier) }}{% else %}{{ t('codes.tier_unknown') }}{% endif %}</div>
-    <div class="code-card__code">{{ c.code }}</div>
+    <div class="code-card__code">{{ c.code | decrypt }}</div>
     <div class="code-card__meta muted fs-12">
       {{ t('codes.exp_label') }}{{ c.exp_number or '—' }}
       {% if c.found_at %}· {{ c.found_at.strftime('%d.%m.%Y') }}{% endif %}
@@ -46,7 +46,7 @@
   {% for c in redeemed %}
   <div class="code-card redeemed" id="card-{{ c.id }}">
     <div class="code-card__tier tier-{{ c.tier or 1 }}">{% if c.tier %}{{ t('codes.tier', n=c.tier) }}{% else %}{{ t('codes.tier_unknown') }}{% endif %}</div>
-    <div class="code-card__code">{{ c.code }}</div>
+    <div class="code-card__code">{{ c.code | decrypt }}</div>
     <div class="code-card__meta muted fs-12">
       {{ t('codes.exp_label') }}{{ c.exp_number or '—' }}
       {% if c.found_at %}· {{ c.found_at.strftime('%d.%m.%Y') }}{% endif %}
