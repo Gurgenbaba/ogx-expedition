@@ -305,7 +305,7 @@ async def do_import(request: Request, raw_text: str = Form(...)):
                 if IS_POSTGRES:
                     sc_stmt = pg_insert(SmugglerCode).values(**sc_row)
                     sc_stmt = sc_stmt.on_conflict_do_nothing(
-                        constraint="ix_smuggler_user_code"
+                        index_elements=["user_id", "code"]
                     )
                     await db.execute(sc_stmt)
                 else:
