@@ -295,6 +295,7 @@
     "todesstern":           "Todesstern",
     "recycler":             "Recycler",
     "spionagesonde":        "Spionagesonde",
+    "reaper":               "Reaper",
     "pathfinder":           "Pathfinder",
     // English
     "small cargo":          "Kleiner Transporter",
@@ -304,26 +305,31 @@
     "cruiser":              "Kreuzer",
     "battleship":           "Schlachtschiff",
     "battlecruiser":        "Schlachtkreuzer",
-    "bomber":               "Bomber",
     "destroyer":            "Zerstörer",
     "deathstar":            "Todesstern",
-    "recycler":             "Recycler",
     "espionage probe":      "Spionagesonde",
+    "solar satellite":      "Solarsatellit",
     // French
-    "petit transporteur":   "Kleiner Transporter",
-    "grand transporteur":   "Großer Transporter",
-    "chasseur léger":       "Leichter Jäger",
-    "chasseur lourd":       "Schwerer Jäger",
-    "croiseur":             "Kreuzer",
-    "vaisseau de bataille": "Schlachtschiff",
-    "traqueur":             "Schlachtkreuzer",
-    "bombardier":           "Bomber",
-    "destructeur":          "Zerstörer",
-    "étoile de la mort":    "Todesstern",
-    "recycleur":            "Recycler",
-    "sonde d'espionnage":   "Spionagesonde",
-    "sonde d`espionnage":   "Spionagesonde",
-    "eclaireur":            "Pathfinder",
+    "petit transporteur":        "Kleiner Transporter",
+    "grand transporteur":        "Großer Transporter",
+    "chasseur léger":            "Leichter Jäger",
+    "chasseur lourd":            "Schwerer Jäger",
+    "croiseur":                  "Kreuzer",
+    "vaisseau de bataille":      "Schlachtschiff",
+    "traqueur":                  "Schlachtkreuzer",
+    "bombardier":                "Bomber",
+    "destructeur":               "Zerstörer",
+    "étoile de la mort":         "Todesstern",
+    "recycleur":                 "Recycler",
+    "sonde espionnage":          "Spionagesonde",
+    "sonde d'espionnage":        "Spionagesonde",
+    "sonde d\`espionnage":       "Spionagesonde",
+    "satellite solaire":         "Solarsatellit",
+    "faucheur":                  "Reaper",
+    "éclaireur":                 "Pathfinder",
+    "eclaireur":                 "Pathfinder",
+    "vaisseau de colonisation":  null,  // ignore
+    "colonie":                   null,  // ignore
   };
 
   function parseGamePaste(text) {
@@ -345,21 +351,29 @@
       result.__max = parseInt(rawMax) || 0;
     }
 
-    // ALL ship names used as split markers (incl. ignored ones like Kolonieschiff)
+    // ALL ship names used as split markers (all languages, incl. ignored ones)
     const ALL_SHIPS = [
       // German
       "Schlachtkreuzer","Schlachtschiff","Kolonieschiff","Solarsatellit",
-      "Kleiner Transporter","Grosser Transporter","Leichter Jaeger","Schwerer Jaeger",
       "Kleiner Transporter","Großer Transporter","Leichter Jäger","Schwerer Jäger",
-      "Kreuzer","Recycler","Spionagesonde","Bomber","Zerstörer","Todesstern","Pathfinder",
+      "Kreuzer","Recycler","Spionagesonde","Bomber","Zerstörer","Todesstern",
+      "Reaper","Pathfinder",
       // English
       "Small Cargo","Large Cargo","Light Fighter","Heavy Fighter",
       "Cruiser","Battleship","Battlecruiser","Destroyer","Deathstar",
-      "Espionage Probe","Colony Ship",
-      // French
-      "Petit transporteur","Grand transporteur","Chasseur léger","Chasseur lourd",
-      "Croiseur","Vaisseau de bataille","Traqueur","Bombardier","Destructeur",
-      "Étoile de la mort","Recycleur","Sonde d'espionnage","Eclaireur",
+      "Espionage Probe","Solar Satellite","Colony Ship",
+      // French — exact capitalisation variants from OGame FR
+      "Vaisseau de Colonisation","Vaisseau de colonisation",
+      "Vaisseau de Bataille","Vaisseau de bataille",
+      "Étoile de la Mort","Étoile de la mort",
+      "Sonde Espionnage","Sonde d'Espionnage","Sonde d'espionnage",
+      "Satellite Solaire","Satellite solaire",
+      "Petit Transporteur","Petit transporteur",
+      "Grand Transporteur","Grand transporteur",
+      "Chasseur Léger","Chasseur léger",
+      "Chasseur Lourd","Chasseur lourd",
+      "Croiseur","Traqueur","Bombardier","Destructeur",
+      "Recycleur","Éclaireur","Eclaireur","Faucheur",
     ];
 
     // Sort longest first so "Schlachtkreuzer" matches before "Schlachtschiff"
@@ -372,7 +386,7 @@
     for (let i = 0; i < segments.length - 1; i++) {
       const seg = segments[i];
       const canonical = SHIP_NAME_MAP[seg.toLowerCase()];
-      if (!canonical) continue;
+      if (!canonical || canonical === null) continue;  // null = ignored ship (colony ship etc)
 
       const chunk = segments[i + 1] || "";
       // Remove "Geschwindigkeit:" prefix and everything up to ":"
