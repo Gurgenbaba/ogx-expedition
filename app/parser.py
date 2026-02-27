@@ -2,13 +2,9 @@
 """
 OGX Expedition Message Parser — DE / EN / FR
 
-Parses raw copy-pasted text from the OGame message inbox.
-Each expedition message block is separated by the fleet command header line.
-
-Supports all three OGame server languages:
-  DE: Flottenkommando / Expeditionsbericht
-  EN: Fleet Command / Expedition Report
-  FR: Commandement de la flotte / Rapport d'expédition
+Supports all three OGame server languages.
+Handles both tab-separated and space-separated copy-paste formats.
+Block splitting works via timestamp+header OR via EXPEDITION # as fallback.
 """
 from __future__ import annotations
 
@@ -22,41 +18,38 @@ from typing import Optional
 # ---------------------------------------------------------------------------
 # Multi-language keyword maps
 # ---------------------------------------------------------------------------
-
-# Outcome headlines — all three languages map to the same internal keys
 OUTCOME_HEADLINES = {
     # German
-    "Expedition erfolgreich":       "success",
-    "Expedition gescheitert":       "failed",
-    "Verschwinden der Flotte":      "vanished",
-    "Ionensturm":                   "storm",
-    "Kontakt verloren":             "contact_lost",
-    "Gravitationsanomalie":         "gravity",
-    "Expeditionsbericht: Erfolgreich": "success",
-    "Keine Funde":                  "failed",
-    "Piraten":                      "success",
+    "Expedition erfolgreich":           "success",
+    "Expedition gescheitert":           "failed",
+    "Verschwinden der Flotte":          "vanished",
+    "Ionensturm":                       "storm",
+    "Kontakt verloren":                 "contact_lost",
+    "Gravitationsanomalie":             "gravity",
+    "Expeditionsbericht: Erfolgreich":  "success",
+    "Keine Funde":                      "failed",
     # English
-    "Expedition successful":        "success",
-    "Expedition failed":            "failed",
-    "Fleet disappeared":            "vanished",
-    "Ion Storm":                    "storm",
-    "Lost contact":                 "contact_lost",
-    "Gravity anomaly":              "gravity",
-    "No finds":                     "failed",
-    "Pirates":                      "success",
+    "Expedition successful":            "success",
+    "Expedition failed":                "failed",
+    "Fleet disappeared":                "vanished",
+    "Ion Storm":                        "storm",
+    "Lost contact":                     "contact_lost",
+    "Gravity anomaly":                  "gravity",
+    "No finds":                         "failed",
     # French
-    "Expédition réussie":           "success",
-    "Expédition compromise":        "success",  # pirate encounter — classified via pirate_strength
-    "Expédition échouée":           "failed",
-    "Disparition de la flotte":     "vanished",
-    "Tempête ionique":              "storm",
-    "Contact perdu":                "contact_lost",
-    "Anomalie gravitationnelle":    "gravity",
-    "Aucune découverte":            "failed",
-    "Pirates":                      "success",  # same word
+    "Expédition réussie":               "success",
+    "Expédition compromise":            "success",   # pirate loss — refined via pirate_strength
+    "Expédition échouée":               "failed",
+    "Disparition de la flotte":         "vanished",
+    "Tempête ionique":                  "storm",
+    "Contact perdu":                    "contact_lost",
+    "Anomalie gravitationnelle":        "gravity",
+    "Aucune découverte":                "failed",
+    # Shared
+    "Piraten":                          "success",
+    "Pirates":                          "success",
 }
 
-# Resource labels → internal key (all languages)
 RESOURCE_LABELS = {
     # German
     "Metall":           "metal",
@@ -66,7 +59,6 @@ RESOURCE_LABELS = {
     # English
     "Metal":            "metal",
     "Crystal":          "crystal",
-    "Deuterium":        "deuterium",
     "Dark Matter":      "dark_matter",
     # French
     "Métal":            "metal",
@@ -75,9 +67,9 @@ RESOURCE_LABELS = {
     "Matière noire":    "dark_matter",
 }
 
-# Ship names — all languages map to German canonical name (stored in DB as DE)
+# All ship names across all languages → canonical German name
 SHIP_NAME_MAP = {
-    # German (canonical — stored as-is)
+    # German (canonical)
     "Kleiner Transporter":  "Kleiner Transporter",
     "Großer Transporter":   "Großer Transporter",
     "Leichter Jäger":       "Leichter Jäger",
@@ -94,7 +86,7 @@ SHIP_NAME_MAP = {
     "Crawler":              "Crawler",
     "Reaper":               "Reaper",
     "Pathfinder":           "Pathfinder",
-    # English → German canonical
+    # English
     "Small Cargo":          "Kleiner Transporter",
     "Large Cargo":          "Großer Transporter",
     "Light Fighter":        "Leichter Jäger",
@@ -102,16 +94,12 @@ SHIP_NAME_MAP = {
     "Cruiser":              "Kreuzer",
     "Battleship":           "Schlachtschiff",
     "Battlecruiser":        "Schlachtkreuzer",
-    "Bomber":               "Bomber",
     "Destroyer":            "Zerstörer",
     "Deathstar":            "Todesstern",
-    "Recycler":             "Recycler",
     "Espionage Probe":      "Spionagesonde",
     "Solar Satellite":      "Solarsatellit",
-    "Crawler":              "Crawler",
-    "Reaper":               "Reaper",
     "Pathfinder":           "Pathfinder",
-    # French → German canonical
+    # French
     "Petit Transporteur":   "Kleiner Transporter",
     "Grand Transporteur":   "Großer Transporter",
     "Chasseur Léger":       "Leichter Jäger",
@@ -126,69 +114,67 @@ SHIP_NAME_MAP = {
     "Sonde Espionnage":     "Spionagesonde",
     "Sonde d'Espionnage":   "Spionagesonde",
     "Satellite Solaire":    "Solarsatellit",
-    "Crawler":              "Crawler",
     "Faucheur":             "Reaper",
     "Eclaireur":            "Pathfinder",
+    "Éclaireur":            "Pathfinder",
 }
 
-# All known ship names across all languages (for lookup)
 SHIP_NAMES = set(SHIP_NAME_MAP.keys())
 
 # ---------------------------------------------------------------------------
-# Regex patterns — language-aware where needed
+# Regex patterns
 # ---------------------------------------------------------------------------
 _RE_TIMESTAMP = re.compile(
     r"(\d{2}\.\d{2}(?:\.\d{2,4})?)\s+(\d{2}:\d{2}:\d{2})"
 )
 _RE_EXP_NUMBER = re.compile(r"EXP[EÉ]DITION\s*#(\d+)", re.IGNORECASE)
 
-_RE_RESOURCE_LINE = re.compile(r"^([+-][\d.,]+)$")
-_RE_SHIP_QTY      = re.compile(r"^([+-][\d.,]+)$")
-
-# Loss percent — DE/EN/FR
 _RE_LOSS_PERCENT = re.compile(
-    r"(?:Verluste|Losses?|Pertes)\s*:\s*(\d+)\s*%",
+    r"(?:Verluste|Losses?|Pertes)\s*[:\s]\s*(\d+)\s*%",
     re.IGNORECASE
 )
-# Pirate strength — DE/EN/FR
 _RE_PIRATE_STRENGTH = re.compile(
-    r"(?:Feindsignaturen|Enemy signatures?|Signatures ennemies)\s*:\s*([\d.,]+)",
+    r"(?:Feindsignaturen|Enemy signatures?|Signatures ennemies)\s*[:\s]\s*([\d.,\s]+)",
     re.IGNORECASE
 )
-# Pirate win chance — DE/EN/FR
 _RE_PIRATE_WIN_CHANCE = re.compile(
-    r"(?:Gesch[äa]tzter Sieg|Estimated victory|Victoire estim[ée]e?)\s*:\s*~(\d+)\s*%",
+    r"(?:Gesch[äa]tzter Sieg|Estimated victory|Victoire estim[ée]e?)\s*[:\s]\s*~?(\d+)\s*%",
     re.IGNORECASE
 )
-# Pirate loss rate — DE/EN/FR
 _RE_PIRATE_LOSS_RATE = re.compile(
-    r"(?:Verlustrate|Loss rate|Taux de pertes)\s*:\s*(\d+)\s*%",
+    r"(?:Verlustrate|Loss rate|Taux de pertes)\s*[:\s]\s*(\d+)\s*%",
     re.IGNORECASE
 )
-# Dark matter bonus (Schwarzer Horizont / Black Horizon / Horizon Noir)
 _RE_DM_BONUS = re.compile(
-    r"(?:Schwarzer Horizont|Black Horizon|Horizon Noir)\s*:\s*\+?([\d.,]+)\s*\(\+(\d+)%\)",
+    r"(?:Schwarzer Horizont|Black Horizon|Horizon Noir)\s*[:\s]\s*\+?([\d.,\s]+)\s*\(\+(\d+)%\)",
     re.IGNORECASE
 )
-# Smuggler code
 _RE_SMUGGLER_CODE = re.compile(r"\b(\d{4}-\d{4}-\d{4})\b")
 _RE_SMUGGLER_TIER = re.compile(r"(?:Stufe|Level|Niveau)\s*(\d+)", re.IGNORECASE)
 
-# Block header — all three languages
+# Block header — all three languages (tabs or multiple spaces between parts)
 _BLOCK_HEADER = re.compile(
-    r"\d{2}\.\d{2}(?:\.\d{2,4})?\s+\d{2}:\d{2}:\d{2}\s+"
+    r"\d{2}\.\d{2}(?:\.\d{2,4})?\s+\d{2}:\d{2}:\d{2}"
+    r"[\t ]+"
     r"(?:"
-    r"Flottenkommando\s+Expeditionsbericht"          # DE
-    r"|Fleet Command\s+Expedition Report"             # EN
-    r"|Commandement de la flotte\s+Rapport d['']exp[ée]dition"  # FR
+    r"Flottenkommando[\t ]+Expeditionsbericht"
+    r"|Fleet Command[\t ]+Expedition Report"
+    r"|Commandement de la flotte[\t ]+Rapport d[''\u2019]exp[ée]dition"
     r")"
+)
+
+# Fallback splitter: EXPEDITION # lines that look like a block start
+# Used when header-based splitting finds nothing
+_BLOCK_FALLBACK = re.compile(
+    r"(?:^|\n)[ \t]*EXP[EÉ]DITION\s*#\d+",
+    re.IGNORECASE
 )
 
 
 def _parse_num(s: str) -> int:
-    """Parse '1.200.800' or '+179.941.271.650' or '-4.202.800' to int."""
     s = s.strip().lstrip("+")
-    s = s.replace(".", "").replace(",", "").replace("\xa0", "").replace(" ", "")
+    s = re.sub(r"[\s\xa0]", "", s)
+    s = s.replace(".", "").replace(",", "")
     try:
         return int(s)
     except ValueError:
@@ -222,24 +208,24 @@ def _parse_timestamp(date_str: str, time_str: str) -> Optional[datetime]:
 # ---------------------------------------------------------------------------
 @dataclass
 class ParsedExpedition:
-    exp_number:           Optional[int]      = None
-    returned_at:          Optional[datetime] = None
-    outcome_raw:          str                = ""
-    outcome_type:         str                = "failed"
+    exp_number:             Optional[int]      = None
+    returned_at:            Optional[datetime] = None
+    outcome_raw:            str                = ""
+    outcome_type:           str                = "failed"
 
-    metal:                int                = 0
-    crystal:              int                = 0
-    deuterium:            int                = 0
-    dark_matter:          int                = 0
-    dark_matter_bonus:    int                = 0
-    dark_matter_bonus_pct: int               = 0
+    metal:                  int                = 0
+    crystal:                int                = 0
+    deuterium:              int                = 0
+    dark_matter:            int                = 0
+    dark_matter_bonus:      int                = 0
+    dark_matter_bonus_pct:  int                = 0
 
     ships_delta: dict = field(default_factory=dict)
 
-    loss_percent:      Optional[float] = None
-    pirate_strength:   Optional[int]   = None
-    pirate_win_chance: Optional[int]   = None
-    pirate_loss_rate:  Optional[int]   = None
+    loss_percent:       Optional[float] = None
+    pirate_strength:    Optional[int]   = None
+    pirate_win_chance:  Optional[int]   = None
+    pirate_loss_rate:   Optional[int]   = None
 
     raw_text:    str           = ""
     parse_error: Optional[str] = None
@@ -268,14 +254,14 @@ class ParsedExpedition:
     def classify_outcome(self) -> None:
         base = self.outcome_raw
 
-        if base == "vanished":   self.outcome_type = "vanished";     return
-        if base == "failed":     self.outcome_type = "failed";       return
+        if base == "vanished":  self.outcome_type = "vanished"; return
+        if base == "failed":    self.outcome_type = "failed";   return
         if base in ("storm", "contact_lost", "gravity"):
-            self.outcome_type = base;                                return
+            self.outcome_type = base; return
 
         if base == "success":
             if self.smuggler_code:
-                self.outcome_type = "smuggler_code";                 return
+                self.outcome_type = "smuggler_code"; return
 
             has_res   = self.total_resources > 0
             has_dm    = self.dark_matter > 0
@@ -301,14 +287,63 @@ class ParsedExpedition:
 # Block splitter
 # ---------------------------------------------------------------------------
 def _split_blocks(text: str) -> list[str]:
+    """Split by timestamp+header. Falls back to EXPEDITION # if no headers found."""
     positions = [m.start() for m in _BLOCK_HEADER.finditer(text)]
+
+    if not positions:
+        # Fallback: split on lines containing EXPEDITION #NNN
+        # Walk backwards to include any preceding timestamp/outcome line
+        fb_positions = []
+        for m in _BLOCK_FALLBACK.finditer(text):
+            # Try to grab up to 3 lines before the EXPEDITION # line
+            start = max(0, text.rfind("\n", 0, m.start()))
+            # Look further back for a timestamp line
+            chunk_before = text[max(0, start - 200):start]
+            ts_m = list(_RE_TIMESTAMP.finditer(chunk_before))
+            if ts_m:
+                ts_start = start - 200 + ts_m[-1].start()
+                fb_positions.append(max(0, ts_start))
+            else:
+                fb_positions.append(max(0, m.start()))
+        positions = sorted(set(fb_positions))
+
     if not positions:
         return []
+
     blocks = []
     for i, pos in enumerate(positions):
         end = positions[i + 1] if i + 1 < len(positions) else len(text)
         blocks.append(text[pos:end].strip())
     return blocks
+
+
+# ---------------------------------------------------------------------------
+# Line expander — handles BOTH tab-separated and space-separated columns
+# ---------------------------------------------------------------------------
+def _expand_lines(lines: list[str]) -> list[str]:
+    """
+    Convert each line into a flat list of tokens.
+    Handles:
+      - Tab-separated:   "Metall\t+1.200.000"  →  ["Metall", "+1.200.000"]
+      - Space-separated: "Grand Transporteur        -3.218.629"  →  ["Grand Transporteur", "-3.218.629"]
+    """
+    expanded: list[str] = []
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        if "\t" in line:
+            parts = [p.strip() for p in line.split("\t") if p.strip()]
+            expanded.extend(parts)
+        else:
+            # Try splitting on 2+ spaces (space-padded HTML table copy)
+            parts = [p.strip() for p in re.split(r"  +", line) if p.strip()]
+            if len(parts) >= 2 and re.match(r"^[+-][\d.,\s]+$", parts[-1]):
+                # Last token looks like a number → label + value
+                expanded.extend(parts)
+            else:
+                expanded.append(line)
+    return expanded
 
 
 # ---------------------------------------------------------------------------
@@ -327,21 +362,20 @@ def _parse_block(block: str) -> ParsedExpedition:
     if ts_match:
         result.returned_at = _parse_timestamp(ts_match.group(1), ts_match.group(2))
 
-    # Expedition number
-    for line in lines[:8]:
+    # Expedition number — scan first 10 lines
+    for line in lines[:10]:
         m = _RE_EXP_NUMBER.search(line)
         if m:
             result.exp_number = int(m.group(1))
             break
 
-    # Outcome headline — scan all lines, longest match wins
-    best_match_len = 0
+    # Outcome headline — longest match wins
+    best_len = 0
     for line in lines:
         for keyword, outcome in OUTCOME_HEADLINES.items():
-            if keyword in line and len(keyword) > best_match_len:
+            if keyword in line and len(keyword) > best_len:
                 result.outcome_raw = outcome
-                best_match_len = len(keyword)
-
+                best_len = len(keyword)
     if not result.outcome_raw:
         result.outcome_raw = "failed"
 
@@ -372,23 +406,15 @@ def _parse_block(block: str) -> ParsedExpedition:
             result.dark_matter_bonus_pct = int(m.group(2))
             break
 
-    # Resources and ships
-    # Expand tab-separated pairs first
-    expanded: list[str] = []
-    for line in lines:
-        if "\t" in line:
-            parts = [p.strip() for p in line.split("\t")]
-            expanded.extend(p for p in parts if p)
-        else:
-            expanded.append(line)
+    # Resources and ships — expand tabs AND spaces
+    expanded = _expand_lines(lines)
 
     i = 0
     while i < len(expanded):
-        line = expanded[i]
+        token = expanded[i]
 
-        # Resource?
-        if line in RESOURCE_LABELS:
-            key = RESOURCE_LABELS[line]
+        if token in RESOURCE_LABELS:
+            key = RESOURCE_LABELS[token]
             if i + 1 < len(expanded):
                 val = _parse_num(expanded[i + 1])
                 if val != 0:
@@ -399,13 +425,12 @@ def _parse_block(block: str) -> ParsedExpedition:
                     i += 2
                     continue
 
-        # Ship?
-        if line in SHIP_NAMES:
-            canonical = SHIP_NAME_MAP[line]
+        if token in SHIP_NAMES:
+            canonical = SHIP_NAME_MAP[token]
             if i + 1 < len(expanded):
-                qty_line = expanded[i + 1].strip()
-                if re.match(r"^[+-][\d.,\s]+$", qty_line):
-                    val = _parse_num(qty_line)
+                qty = expanded[i + 1].strip()
+                if re.match(r"^[+-][\d.,\s]+$", qty):
+                    val = _parse_num(qty)
                     result.ships_delta[canonical] = result.ships_delta.get(canonical, 0) + val
                     i += 2
                     continue
@@ -431,6 +456,7 @@ def _parse_block(block: str) -> ParsedExpedition:
 def parse_expedition_text(raw: str) -> list[ParsedExpedition]:
     """
     Parse a full copy-pasted expedition message dump (DE, EN or FR).
+    Handles tab-separated and space-separated column formats.
     Returns a list of ParsedExpedition objects (one per message block).
     """
     blocks = _split_blocks(raw)
