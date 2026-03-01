@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Prestige — OGX Expedition{% endblock %}
+{% block title %}{{ t('prestige.title') }} — OGX Expedition{% endblock %}
 
 {% block content %}
 <style>
@@ -78,15 +78,12 @@
 .lb-table td { padding:8px 8px; border-bottom:1px solid #111c30; }
 .lb-table tr:hover td { background:#0f1f3d; }
 .lb-rank { color:#64748b; width:30px; }
-.lb-rank.top1 { color:#f59e0b; font-weight:700; }
-.lb-rank.top2 { color:#94a3b8; font-weight:700; }
-.lb-rank.top3 { color:#cd7c3a; font-weight:700; }
-.lb-user { color:#e2e8f0; font-weight:600; }
-.lb-badge { font-size:10px; padding:2px 6px; border-radius:4px; background:#1e3256; color:#60a5fa; }
-.lb-op { color:#60a5fa; font-weight:700; text-align:right; }
-
-/* Scanner title badge */
-.scanner-badge {
+.lb-user { color:#e2e8f0; }
+.lb-op   { color:#60a5fa; font-weight:600; text-align:right; }
+.top1 { color:#f59e0b; }
+.top2 { color:#94a3b8; }
+.top3 { color:#b45309; }
+.lb-badge {
   display:inline-block;
   font-size:11px; padding:3px 10px; border-radius:12px;
   background:#1a2e50; color:#60a5fa;
@@ -98,8 +95,8 @@
 <div style="max-width:960px;margin:0 auto;padding:0 0 40px;">
 
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
-    <h1 style="margin:0;font-size:20px;color:#e2e8f0;">🏆 Prestige</h1>
-    <a href="/" style="font-size:12px;color:#60a5fa;text-decoration:none;opacity:.7">← Dashboard</a>
+    <h1 style="margin:0;font-size:20px;color:#e2e8f0;">🏆 {{ t('prestige.title') }}</h1>
+    <a href="/" style="font-size:12px;color:#60a5fa;text-decoration:none;opacity:.7">{{ t('prestige.back') }}</a>
   </div>
 
   <div class="prestige-grid">
@@ -115,66 +112,66 @@
         {% else %}🪐{% endif %}
       </div>
       <div class="rank-info">
-        <div class="rank-name">{{ summary.prestige_rank }}</div>
-        <div class="rank-op">{{ "{:,}".format(summary.total_op) }} Oracle Points</div>
+        <div class="rank-name">{{ t('rank.' + summary.prestige_rank) }}</div>
+        <div class="rank-op">{{ "{:,}".format(summary.total_op) }} {{ t('prestige.oracle_points') }}</div>
         {% if summary.scanner_title %}
-          <div class="scanner-badge">{{ summary.scanner_title }}</div>
+          <div class="scanner-badge">{{ t('scanner.' + summary.scanner_title) }}</div>
         {% endif %}
         {% if summary.next_rank %}
           <div class="prog-wrap">
             <div class="prog-label">
-              <span>→ {{ summary.next_rank.name }}</span>
-              <span>{{ "{:,}".format(summary.next_rank.op_needed) }} OP needed</span>
+              <span>→ {{ t('rank.' + summary.next_rank.name) }}</span>
+              <span>{{ "{:,}".format(summary.next_rank.op_needed) }} {{ t('prestige.op_needed') }}</span>
             </div>
             <div class="prog-bar">
               <div class="prog-fill" style="width:{{ summary.progress_pct }}%"></div>
             </div>
           </div>
         {% else %}
-          <div style="margin-top:10px;font-size:11px;color:#f59e0b;">✨ Maximum rank reached</div>
+          <div style="margin-top:10px;font-size:11px;color:#f59e0b;">{{ t('prestige.max_rank') }}</div>
         {% endif %}
       </div>
     </div>
 
     <!-- ── Stats ── -->
     <div class="pcard">
-      <h3>Activity</h3>
+      <h3>{{ t('prestige.activity') }}</h3>
       <div class="stats-row">
         <div class="stat-box">
           <div class="stat-val">{{ "{:,}".format(summary.expo_count) }}</div>
-          <div class="stat-lbl">Expeditions</div>
+          <div class="stat-lbl">{{ t('prestige.expeditions') }}</div>
         </div>
         <div class="stat-box">
           <div class="stat-val">{{ "{:,}".format(summary.scan_count) }}</div>
-          <div class="stat-lbl">Systems Scanned</div>
+          <div class="stat-lbl">{{ t('prestige.systems_scanned') }}</div>
         </div>
         <div class="stat-box">
           <div class="stat-val">{{ summary.smuggler_count }}</div>
-          <div class="stat-lbl">Smuggler Codes</div>
+          <div class="stat-lbl">{{ t('prestige.smuggler_codes') }}</div>
         </div>
       </div>
     </div>
 
     <!-- ── Streak ── -->
     <div class="pcard">
-      <h3>Activity Streak</h3>
+      <h3>{{ t('prestige.streak') }}</h3>
       <div class="streak-box">
         <div class="streak-fire">🔥</div>
         <div>
           <div class="streak-num">{{ summary.current_streak }}</div>
-          <div class="streak-lbl">Current streak (days)</div>
-          <div style="margin-top:6px;font-size:11px;color:#64748b;">Best: {{ summary.longest_streak }} days</div>
+          <div class="streak-lbl">{{ t('prestige.streak_current') }}</div>
+          <div style="margin-top:6px;font-size:11px;color:#64748b;">{{ t('prestige.streak_best').replace('{n}', summary.longest_streak | string) }}</div>
         </div>
       </div>
     </div>
 
     <!-- ── Achievements ── -->
     <div class="pcard" style="grid-column:1/-1;">
-      <h3>Achievements</h3>
+      <h3>{{ t('prestige.achievements') }}</h3>
 
       {% if summary.achievements_unlocked %}
         <div style="margin-bottom:12px;font-size:11px;color:#64748b;">
-          {{ summary.achievements_unlocked | length }} unlocked
+          {{ summary.achievements_unlocked | length }} {{ t('prestige.unlocked') }}
         </div>
         <div class="ach-list" style="margin-bottom:20px;">
           {% for a in summary.achievements_unlocked %}
@@ -184,14 +181,14 @@
               <div class="ach-name">{{ a.name }}</div>
               <div class="ach-desc">{{ a.description }}</div>
             </div>
-            <div class="ach-op">✓ Unlocked</div>
+            <div class="ach-op">{{ t('prestige.achievement_unlocked') }}</div>
           </div>
           {% endfor %}
         </div>
       {% endif %}
 
       {% if summary.achievements_locked %}
-        <div style="margin-bottom:10px;font-size:11px;color:#64748b;">Next to unlock</div>
+        <div style="margin-bottom:10px;font-size:11px;color:#64748b;">{{ t('prestige.next_to_unlock') }}</div>
         <div class="ach-list">
           {% for a in summary.achievements_locked %}
           <div class="ach-item locked">
@@ -211,16 +208,16 @@
 
     <!-- ── Leaderboard ── -->
     <div class="pcard" style="grid-column:1/-1;">
-      <h3>Leaderboard — All Time</h3>
+      <h3>{{ t('prestige.leaderboard') }}</h3>
       <table class="lb-table">
         <thead>
           <tr>
             <th>#</th>
-            <th>Player</th>
-            <th>Rank</th>
-            <th style="text-align:right">Oracle Points</th>
-            <th style="text-align:right">Expeditions</th>
-            <th style="text-align:right">Systems</th>
+            <th>{{ t('prestige.col_player') }}</th>
+            <th>{{ t('prestige.col_rank') }}</th>
+            <th style="text-align:right">{{ t('prestige.col_op') }}</th>
+            <th style="text-align:right">{{ t('prestige.col_expeditions') }}</th>
+            <th style="text-align:right">{{ t('prestige.col_systems') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -232,22 +229,22 @@
             <td class="lb-user">
               {{ entry.username }}
               {% if entry.user_id == user.id %}
-                <span style="font-size:10px;color:#60a5fa;margin-left:4px;">(you)</span>
+                <span style="font-size:10px;color:#60a5fa;margin-left:4px;">{{ t('prestige.you') }}</span>
               {% endif %}
             </td>
-            <td><span class="lb-badge">{{ entry.prestige_rank }}</span></td>
+            <td><span class="lb-badge">{{ t('rank.' + entry.prestige_rank) }}</span></td>
             <td class="lb-op">{{ "{:,}".format(entry.total_op) }}</td>
             <td style="text-align:right;color:#94a3b8;">{{ "{:,}".format(entry.expo_count) }}</td>
             <td style="text-align:right;color:#94a3b8;">{{ "{:,}".format(entry.scan_count) }}</td>
           </tr>
           {% endfor %}
           {% if not leaderboard %}
-          <tr><td colspan="6" style="text-align:center;color:#64748b;padding:20px;">No data yet</td></tr>
+          <tr><td colspan="6" style="text-align:center;color:#64748b;padding:20px;">{{ t('prestige.no_data') }}</td></tr>
           {% endif %}
         </tbody>
       </table>
     </div>
 
-  </div><!-- /prestige-grid -->
+  </div>
 </div>
 {% endblock %}
