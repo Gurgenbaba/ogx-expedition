@@ -227,7 +227,13 @@ function switchTab(name){
 (function(){
   const TIMELINE = {{ timeline | tojson }};
   const TYPES = {{ outcome_types | tojson }};
-  const COLORS = {{ COLORS | tojson }};
+  const COLORS = {
+    "success_res":"#22c55e","success_ships":"#3b82f6","success_mix":"#10b981",
+    "success_dm":"#a78bfa","success_mix_dm":"#8b5cf6","success_full":"#f59e0b",
+    "pirates_win":"#f97316","pirates_loss":"#ef4444",
+    "storm":"#facc15","contact_lost":"#94a3b8","gravity":"#e879f9",
+    "vanished":"#dc2626","smuggler_code":"#06b6d4","failed":"#475569"
+  };
   const active = TYPES.filter(t=>TIMELINE.some(w=>(w[t]||0)>0));
   const datasets = active.map(t=>({
     label:(window.I18N&&window.I18N['outcome.'+t])||t,
