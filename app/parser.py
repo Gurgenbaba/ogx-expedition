@@ -234,6 +234,7 @@ class ParsedExpedition:
     deuterium: int = 0
     dark_matter: int = 0
     dark_matter_bonus: int = 0        # Schwarzer Horizont absolute amount
+    dark_matter_bonus_pct: int = 0     # Schwarzer Horizont percentage (e.g. 28)
     ships_gained: dict = field(default_factory=dict)
     ships_lost: dict = field(default_factory=dict)
     gt_lost: int = 0
@@ -245,6 +246,16 @@ class ParsedExpedition:
     smuggler_tier: Optional[int] = None
     pirates_won: Optional[bool] = None
     parse_error: Optional[str] = None
+
+    @property
+    def ships_delta(self) -> Optional[dict]:
+        """Combined ships dict: positive=gained, negative=lost. None if empty."""
+        d = {}
+        for ship, qty in self.ships_gained.items():
+            d[ship] = d.get(ship, 0) + qty
+        for ship, qty in self.ships_lost.items():
+            d[ship] = d.get(ship, 0) - qty
+        return d if d else None
 
     @property
     def dedup_key(self) -> str:
@@ -353,6 +364,7 @@ def _parse_block(block: str) -> ParsedExpedition:
     bh = _RE_BLACK_HORIZON.search(full_text)
     if bh:
         result.dark_matter_bonus = _parse_num(bh.group(1))
+        result.dark_matter_bonus_pct = int(bh.group(2))
 
     # --- Loss percent ---
     lp = _RE_LOSS_PERCENT.search(full_text)
@@ -522,3 +534,6 @@ def parse_expeditions(raw: str) -> list[ParsedExpedition]:
             r = ParsedExpedition(raw_text=block, parse_error=str(e))
         results.append(r)
     return results
+
+# Backwards-compatibility alias
+parse_expedition_text = parse_expeditions
