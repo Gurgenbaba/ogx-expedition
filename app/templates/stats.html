@@ -30,9 +30,9 @@
 
 {# ── Tabs ── #}
 <div style="display:flex;gap:4px;background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:4px;margin-bottom:24px;width:fit-content">
-  <button class="stats-tab active" data-tab="overview" onclick="switchTab('overview')">Übersicht</button>
-  <button class="stats-tab" data-tab="outcomes" onclick="switchTab('outcomes')">Ergebnisse</button>
-  <button class="stats-tab" data-tab="ships" onclick="switchTab('ships')">Schiffe</button>
+  <button class="stats-tab active" data-tab="overview" onclick="switchTab('overview')">{{ t('stats.tab_overview') }}</button>
+  <button class="stats-tab" data-tab="outcomes" onclick="switchTab('outcomes')">{{ t('stats.tab_outcomes') }}</button>
+  <button class="stats-tab" data-tab="ships" onclick="switchTab('ships')">{{ t('stats.tab_ships') }}</button>
 </div>
 
 {# ═══════════════════════ TAB: OVERVIEW ═══════════════════════ #}
@@ -60,7 +60,7 @@
 
   {# Timeline chart #}
   <div class="card" style="padding:20px 24px;margin-bottom:20px">
-    <h2 style="margin:0 0 16px">Ergebnisse letzte 16 Wochen</h2>
+    <h2 style="margin:0 0 16px">{{ t('stats.chart_title') }}</h2>
     <canvas id="timeline-chart" height="180"></canvas>
   </div>
 
@@ -134,7 +134,7 @@
     </div>
     {% if data.ships_lost %}
     <div style="margin-bottom:8px">
-      <div class="fs-11 muted" style="margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em">⚠ Schiffe verloren</div>
+      <div class="fs-11 muted" style="margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em">{{ t('stats.ships_lost_label') }}</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         {% for ship,qty in data.ships_lost.items()|sort(attribute='1',reverse=true) %}
         <span style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);border-radius:6px;padding:3px 9px;font-size:11px;color:#fca5a5;font-family:var(--font-mono)">
@@ -146,7 +146,7 @@
     {% endif %}
     {% if data.ships_gained %}
     <div>
-      <div class="fs-11 muted" style="margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em">✅ Schiffe gewonnen</div>
+      <div class="fs-11 muted" style="margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em">{{ t('stats.ships_gained_label') }}</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         {% for ship,qty in data.ships_gained.items()|sort(attribute='1',reverse=true) %}
         <span style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.2);border-radius:6px;padding:3px 9px;font-size:11px;color:#86efac;font-family:var(--font-mono)">

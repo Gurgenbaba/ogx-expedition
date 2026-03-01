@@ -214,5 +214,15 @@
   "auth.err_invalid": "Nom d'utilisateur ou mot de passe invalide.",
   "auth.err_disabled": "Compte désactivé.",
   "auth.err_unknown": "Connexion échouée. Veuillez réessayer.",
-  "auth.err_network": "Erreur réseau. Veuillez réessayer."
+  "auth.err_network": "Erreur réseau. Veuillez réessayer.",
+  "stats.tab_overview": "Aperçu",
+  "stats.tab_outcomes": "Résultats",
+  "stats.tab_ships": "Vaisseaux",
+  "stats.chart_title": "Résultats des 16 dernières semaines",
+  "stats.ships_lost_label": "⚠ Vaisseaux perdus",
+  "stats.ships_gained_label": "✅ Vaisseaux gagnés",
+  "ship.Kolonieschiff": "Vaisseau de Colonisation",
+  "ship.Solarsatellit": "Satellite Solaire",
+  "ship.Reaper": "Faucheur",
+  "ship.Crawler": "Foreuse"
 }

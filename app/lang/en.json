@@ -214,5 +214,15 @@
   "auth.err_invalid": "Invalid username or password.",
   "auth.err_disabled": "Account is disabled.",
   "auth.err_unknown": "Login failed. Please try again.",
-  "auth.err_network": "Network error. Please try again."
+  "auth.err_network": "Network error. Please try again.",
+  "stats.tab_overview": "Overview",
+  "stats.tab_outcomes": "Outcomes",
+  "stats.tab_ships": "Ships",
+  "stats.chart_title": "Outcomes last 16 weeks",
+  "stats.ships_lost_label": "⚠ Ships lost",
+  "stats.ships_gained_label": "✅ Ships gained",
+  "ship.Kolonieschiff": "Colony Ship",
+  "ship.Solarsatellit": "Solar Satellite",
+  "ship.Reaper": "Reaper",
+  "ship.Crawler": "Crawler"
 }

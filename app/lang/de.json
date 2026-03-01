@@ -214,5 +214,15 @@
   "auth.err_invalid": "Ungültiger Benutzername oder Passwort.",
   "auth.err_disabled": "Konto ist deaktiviert.",
   "auth.err_unknown": "Anmeldung fehlgeschlagen. Bitte erneut versuchen.",
-  "auth.err_network": "Netzwerkfehler. Bitte erneut versuchen."
+  "auth.err_network": "Netzwerkfehler. Bitte erneut versuchen.",
+  "stats.tab_overview": "Übersicht",
+  "stats.tab_outcomes": "Ergebnisse",
+  "stats.tab_ships": "Schiffe",
+  "stats.chart_title": "Ergebnisse letzte 16 Wochen",
+  "stats.ships_lost_label": "⚠ Schiffe verloren",
+  "stats.ships_gained_label": "✅ Schiffe gewonnen",
+  "ship.Kolonieschiff": "Kolonieschiff",
+  "ship.Solarsatellit": "Solarsatellit",
+  "ship.Reaper": "Reaper",
+  "ship.Crawler": "Crawler"
 }

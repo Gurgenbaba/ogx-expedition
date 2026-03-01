@@ -1,10 +1,15 @@
 # app/parser.py
 """
-OGX Expedition Message Parser — DE / EN / FR
+OGX Expedition Message Parser — Multilingual (DE / EN / FR)
 
-Supports all three OGame server languages.
-Handles both tab-separated and space-separated copy-paste formats.
-Block splitting works via timestamp+header OR via EXPEDITION # as fallback.
+Parses raw copy-pasted text from the OGame message inbox.
+Each expedition message block is separated by a header line:
+  "DD.MM HH:MM:SS\t<Fleet Command>\t<Expedition Report>"
+
+Supported languages:
+  DE: Flottenkommando / Expeditionsbericht
+  EN: Fleet Command / Expedition Report
+  FR: Commandement de la flotte / Rapport d'expédition
 """
 from __future__ import annotations
 
@@ -16,165 +21,181 @@ from typing import Optional
 
 
 # ---------------------------------------------------------------------------
-# Multi-language keyword maps
+# Keyword maps — all three languages
 # ---------------------------------------------------------------------------
+
 OUTCOME_HEADLINES = {
-    # German
-    "Expedition erfolgreich":           "success",
-    "Expedition gescheitert":           "failed",
-    "Verschwinden der Flotte":          "vanished",
-    "Ionensturm":                       "storm",
-    "Kontakt verloren":                 "contact_lost",
-    "Gravitationsanomalie":             "gravity",
-    "Expeditionsbericht: Erfolgreich":  "success",
-    "Keine Funde":                      "failed",
-    # English
-    "Expedition successful":            "success",
-    "Expedition failed":                "failed",
-    "Fleet disappeared":                "vanished",
-    "Ion Storm":                        "storm",
-    "Lost contact":                     "contact_lost",
-    "Gravity anomaly":                  "gravity",
-    "No finds":                         "failed",
-    # French
-    "Expédition réussie":               "success",
-    "Expédition compromise":            "success",   # pirate loss — refined via pirate_strength
-    "Expédition échouée":               "failed",
-    "Disparition de la flotte":         "vanished",
-    "Tempête ionique":                  "storm",
-    "Contact perdu":                    "contact_lost",
-    "Anomalie gravitationnelle":        "gravity",
-    "Aucune découverte":                "failed",
-    # Shared
-    "Piraten":                          "success",
-    "Pirates":                          "success",
+    # DE
+    "Expedition erfolgreich":        "success",
+    "Expedition gescheitert":        "failed",
+    "Verschwinden der Flotte":       "vanished",
+    "Ionensturm":                    "storm",
+    "Kontakt verloren":              "contact_lost",
+    "Gravitationsanomalie":          "gravity",
+    "Piraten":                       "success",   # pirate — sub-classified below
+    # DE alternates
+    "Expeditionsbericht: Erfolgreich": "success",
+    "Keine Funde":                   "failed",
+
+    # EN
+    "Expedition Successful":         "success",
+    "Expedition Compromised":        "failed",
+    "Fleet Disappearance":           "vanished",
+    "Ion Storm":                     "storm",
+    "Contact Lost":                  "contact_lost",
+    "Gravitational Anomaly":         "gravity",
+    "Pirates":                       "success",
+
+    # FR
+    "Expédition réussie":            "success",
+    "Expédition compromise":         "failed",
+    "Disparition de la flotte":      "vanished",
+    "Tempête ionique":               "storm",
+    "Contact perdu":                 "contact_lost",
+    "Anomalie gravitationnelle":     "gravity",
+    "Pirates":                       "success",
 }
 
 RESOURCE_LABELS = {
-    # German
-    "Metall":           "metal",
-    "Kristall":         "crystal",
-    "Deuterium":        "deuterium",
-    "Dunkle Materie":   "dark_matter",
-    # English
-    "Metal":            "metal",
-    "Crystal":          "crystal",
-    "Dark Matter":      "dark_matter",
-    # French
-    "Métal":            "metal",
-    "Cristal":          "crystal",
-    "Deutérium":        "deuterium",
-    "Matière noire":    "dark_matter",
+    # DE
+    "Metall":         "metal",
+    "Kristall":       "crystal",
+    "Deuterium":      "deuterium",
+    "Dunkle Materie": "dark_matter",
+    # EN
+    "Metal":          "metal",
+    "Crystal":        "crystal",
+    "Dark Matter":    "dark_matter",
+    # FR
+    "Métal":          "metal",
+    "Cristal":        "crystal",
+    "Deutérium":      "deuterium",
+    "Matière noire":  "dark_matter",
 }
 
-# All ship names across all languages → canonical German name
-SHIP_NAME_MAP = {
-    # German (canonical)
-    "Kleiner Transporter":  "Kleiner Transporter",
-    "Großer Transporter":   "Großer Transporter",
-    "Leichter Jäger":       "Leichter Jäger",
-    "Schwerer Jäger":       "Schwerer Jäger",
-    "Kreuzer":              "Kreuzer",
-    "Schlachtschiff":       "Schlachtschiff",
-    "Schlachtkreuzer":      "Schlachtkreuzer",
-    "Bomber":               "Bomber",
-    "Zerstörer":            "Zerstörer",
-    "Todesstern":           "Todesstern",
-    "Recycler":             "Recycler",
-    "Spionagesonde":        "Spionagesonde",
-    "Solarsatellit":        "Solarsatellit",
-    "Crawler":              "Crawler",
-    "Reaper":               "Reaper",
-    "Pathfinder":           "Pathfinder",
-    # English
-    "Small Cargo":          "Kleiner Transporter",
-    "Large Cargo":          "Großer Transporter",
-    "Light Fighter":        "Leichter Jäger",
-    "Heavy Fighter":        "Schwerer Jäger",
-    "Cruiser":              "Kreuzer",
-    "Battleship":           "Schlachtschiff",
-    "Battlecruiser":        "Schlachtkreuzer",
-    "Destroyer":            "Zerstörer",
-    "Deathstar":            "Todesstern",
-    "Espionage Probe":      "Spionagesonde",
-    "Solar Satellite":      "Solarsatellit",
-    "Pathfinder":           "Pathfinder",
-    # French
-    "Petit Transporteur":   "Kleiner Transporter",
-    "Grand Transporteur":   "Großer Transporter",
-    "Chasseur Léger":       "Leichter Jäger",
-    "Chasseur Lourd":       "Schwerer Jäger",
-    "Croiseur":             "Kreuzer",
-    "Vaisseau de Bataille": "Schlachtschiff",
-    "Traqueur":             "Schlachtkreuzer",
-    "Bombardier":           "Bomber",
-    "Destructeur":          "Zerstörer",
-    "Étoile de la Mort":    "Todesstern",
-    "Recycleur":            "Recycler",
-    "Sonde Espionnage":     "Spionagesonde",
-    "Sonde d'Espionnage":   "Spionagesonde",
-    "Satellite Solaire":    "Solarsatellit",
-    "Faucheur":             "Reaper",
-    "Eclaireur":            "Pathfinder",
-    "Éclaireur":            "Pathfinder",
+# Canonical DE ship name → internal key (used for DB storage)
+# Parser always stores canonical DE name
+SHIP_NAME_MAP: dict[str, str] = {
+    # DE → canonical
+    "Kleiner Transporter":   "Kleiner Transporter",
+    "Großer Transporter":    "Großer Transporter",
+    "Leichter Jäger":        "Leichter Jäger",
+    "Schwerer Jäger":        "Schwerer Jäger",
+    "Kreuzer":               "Kreuzer",
+    "Schlachtschiff":        "Schlachtschiff",
+    "Kolonieschiff":         "Kolonieschiff",
+    "Recycler":              "Recycler",
+    "Spionagesonde":         "Spionagesonde",
+    "Bomber":                "Bomber",
+    "Solarsatellit":         "Solarsatellit",
+    "Zerstörer":             "Zerstörer",
+    "Todesstern":            "Todesstern",
+    "Schlachtkreuzer":       "Schlachtkreuzer",
+    "Pathfinder":            "Pathfinder",
+    "Reaper":                "Reaper",
+    "Crawler":               "Crawler",
+    # EN → canonical DE
+    "Small Cargo":           "Kleiner Transporter",
+    "Large Cargo":           "Großer Transporter",
+    "Light Fighter":         "Leichter Jäger",
+    "Heavy Fighter":         "Schwerer Jäger",
+    "Cruiser":               "Kreuzer",
+    "Battleship":            "Schlachtschiff",
+    "Colony Ship":           "Kolonieschiff",
+    "Recycler":              "Recycler",
+    "Espionage Probe":       "Spionagesonde",
+    "Bomber":                "Bomber",
+    "Solar Satellite":       "Solarsatellit",
+    "Destroyer":             "Zerstörer",
+    "Deathstar":             "Todesstern",
+    "Battlecruiser":         "Schlachtkreuzer",
+    "Pathfinder":            "Pathfinder",
+    "Reaper":                "Reaper",
+    "Crawler":               "Crawler",
+    # FR → canonical DE
+    "Petit Transporteur":          "Kleiner Transporter",
+    "Grand Transporteur":          "Großer Transporter",
+    "Chasseur Léger":              "Leichter Jäger",
+    "Chasseur Lourd":              "Schwerer Jäger",
+    "Croiseur":                    "Kreuzer",
+    "Vaisseau de Bataille":        "Schlachtschiff",
+    "Vaisseau de Colonisation":    "Kolonieschiff",
+    "Recycleur":                   "Recycler",
+    "Sonde Espionnage":            "Spionagesonde",
+    "Sonde d'Espionnage":          "Spionagesonde",
+    "Bombardier":                  "Bomber",
+    "Satellite Solaire":           "Solarsatellit",
+    "Destructeur":                 "Zerstörer",
+    "Étoile de la Mort":           "Todesstern",
+    "Traqueur":                    "Schlachtkreuzer",
+    "Éclaireur":                   "Pathfinder",
 }
 
 SHIP_NAMES = set(SHIP_NAME_MAP.keys())
 
-# ---------------------------------------------------------------------------
-# Regex patterns
-# ---------------------------------------------------------------------------
-_RE_TIMESTAMP = re.compile(
-    r"(\d{2}\.\d{2}(?:\.\d{2,4})?)\s+(\d{2}:\d{2}:\d{2})"
-)
-_RE_EXP_NUMBER = re.compile(r"EXP[EÉ]DITION\s*#(\d+)", re.IGNORECASE)
-
-_RE_LOSS_PERCENT = re.compile(
-    r"(?:Verluste|Losses?|Pertes)\s*[:\s]\s*(\d+)\s*%",
-    re.IGNORECASE
-)
-_RE_PIRATE_STRENGTH = re.compile(
-    r"(?:Feindsignaturen|Enemy signatures?|Signatures ennemies)\s*[:\s]\s*([\d.,\s]+)",
-    re.IGNORECASE
-)
-_RE_PIRATE_WIN_CHANCE = re.compile(
-    r"(?:Gesch[äa]tzter Sieg|Estimated victory|Victoire estim[ée]e?)\s*[:\s]\s*~?(\d+)\s*%",
-    re.IGNORECASE
-)
-_RE_PIRATE_LOSS_RATE = re.compile(
-    r"(?:Verlustrate|Loss rate|Taux de pertes)\s*[:\s]\s*(\d+)\s*%",
-    re.IGNORECASE
-)
-_RE_DM_BONUS = re.compile(
-    r"(?:Schwarzer Horizont|Black Horizon|Horizon Noir)\s*[:\s]\s*\+?([\d.,\s]+)\s*\(\+(\d+)%\)",
-    re.IGNORECASE
-)
+# Smuggler code pattern: XXXX-XXXX-XXXX
 _RE_SMUGGLER_CODE = re.compile(r"\b(\d{4}-\d{4}-\d{4})\b")
 _RE_SMUGGLER_TIER = re.compile(r"(?:Stufe|Level|Niveau)\s*(\d+)", re.IGNORECASE)
 
-# Block header — all three languages (tabs or multiple spaces between parts)
+# ---------------------------------------------------------------------------
+# Block splitting — all three language headers
+# ---------------------------------------------------------------------------
+
 _BLOCK_HEADER = re.compile(
-    r"\d{2}\.\d{2}(?:\.\d{2,4})?\s+\d{2}:\d{2}:\d{2}"
-    r"[\t ]+"
+    r"\d{2}\.\d{2}(?:\.\d{2,4})?\s+\d{2}:\d{2}:\d{2}\s+"
     r"(?:"
-    r"Flottenkommando[\t ]+Expeditionsbericht"
-    r"|Fleet Command[\t ]+Expedition Report"
-    r"|Commandement de la flotte[\t ]+Rapport d[''\u2019]exp[ée]dition"
+    r"Flottenkommando\s+Expeditionsbericht"
+    r"|Fleet\s+Command\s+Expedition\s+Report"
+    r"|Commandement\s+de\s+la\s+flotte\s+Rapport\s+d.exp.dition"
     r")"
 )
 
-# Fallback splitter: EXPEDITION # lines that look like a block start
-# Used when header-based splitting finds nothing
-_BLOCK_FALLBACK = re.compile(
-    r"(?:^|\n)[ \t]*EXP[EÉ]DITION\s*#\d+",
-    re.IGNORECASE
+
+def _split_blocks(text: str) -> list[str]:
+    """Split raw pasted text into individual expedition message blocks."""
+    positions = [m.start() for m in _BLOCK_HEADER.finditer(text)]
+    if not positions:
+        return []
+    blocks = []
+    for i, pos in enumerate(positions):
+        end = positions[i + 1] if i + 1 < len(positions) else len(text)
+        blocks.append(text[pos:end].strip())
+    return blocks
+
+
+# ---------------------------------------------------------------------------
+# Regex patterns
+# ---------------------------------------------------------------------------
+
+_RE_TIMESTAMP   = re.compile(r"(\d{2}\.\d{2}(?:\.\d{2,4})?)\s+(\d{2}:\d{2}:\d{2})")
+_RE_EXP_NUMBER  = re.compile(r"EXP[ÉE]DITION\s*#(\d+)", re.IGNORECASE)
+_RE_RESOURCE_LINE = re.compile(r"^([+-][\d.,\s]+)$")
+_RE_SHIP_QTY    = re.compile(r"^([+-][\d.,\s]+)$")
+_RE_LOSS_PERCENT = re.compile(
+    r"(?:Verluste|Losses?|Pertes?)\s*:\s*(\d+)\s*%", re.IGNORECASE
+)
+_RE_PIRATE_STRENGTH = re.compile(
+    r"(?:Feindsignaturen|Enemy\s+Signatures?|Signatures?\s+ennemies?)\s*:\s*([\d.,]+)",
+    re.IGNORECASE,
+)
+_RE_PIRATE_WIN_CHANCE = re.compile(
+    r"(?:Geschätzter\s+Sieg|Estimated\s+Victory|Victoire\s+estim[ée]e?)\s*:\s*~?(\d+)\s*%",
+    re.IGNORECASE,
+)
+_RE_PIRATE_LOSS_RATE = re.compile(
+    r"(?:Verlustrate|Loss\s+Rate|Taux\s+de\s+pertes?)\s*:\s*(\d+)\s*%",
+    re.IGNORECASE,
+)
+_RE_BLACK_HORIZON = re.compile(
+    r"(?:Schwarzer\s+Horizont|Black\s+Horizon|Horizon\s+Noir)\s*:\s*\+?([\d.,]+)\s*\(\+(\d+)%\)",
+    re.IGNORECASE,
 )
 
 
 def _parse_num(s: str) -> int:
+    """Parse '1.200.800' or '+179.941.271.650' or '-4.202.800' to int."""
     s = s.strip().lstrip("+")
-    s = re.sub(r"[\s\xa0]", "", s)
-    s = s.replace(".", "").replace(",", "")
+    s = s.replace(".", "").replace(",", "").replace("\xa0", "").replace(" ", "")
     try:
         return int(s)
     except ValueError:
@@ -182,56 +203,48 @@ def _parse_num(s: str) -> int:
 
 
 def _parse_timestamp(date_str: str, time_str: str) -> Optional[datetime]:
+    """Parse '25.02' or '25.02.26' + '02:14:33' to datetime."""
+    now = datetime.utcnow()
+    parts = date_str.split(".")
     try:
-        parts = date_str.split(".")
-        if len(parts) == 2:
-            day, month = int(parts[0]), int(parts[1])
-            now = datetime.utcnow()
-            year = now.year
-            dt = datetime(year, month, day)
-            if (dt - now).days > 60:
-                year -= 1
-        elif len(parts) == 3:
-            day, month = int(parts[0]), int(parts[1])
-            y = int(parts[2])
-            year = 2000 + y if y < 100 else y
-        else:
-            return None
-        h, m, sec = (int(x) for x in time_str.split(":"))
-        return datetime(year, month, day, h, m, sec)
+        day, month = int(parts[0]), int(parts[1])
+        year = int("20" + parts[2]) if len(parts) > 2 else now.year
+        h, m, s = map(int, time_str.split(":"))
+        dt = datetime(year, month, day, h, m, s)
+        # If no year given and date is in the future, subtract one year
+        if len(parts) <= 2 and dt > now:
+            dt = dt.replace(year=now.year - 1)
+        return dt
     except Exception:
         return None
 
 
 # ---------------------------------------------------------------------------
-# Parsed result dataclass
+# Result dataclass
 # ---------------------------------------------------------------------------
+
 @dataclass
 class ParsedExpedition:
-    exp_number:             Optional[int]      = None
-    returned_at:            Optional[datetime] = None
-    outcome_raw:            str                = ""
-    outcome_type:           str                = "failed"
-
-    metal:                  int                = 0
-    crystal:                int                = 0
-    deuterium:              int                = 0
-    dark_matter:            int                = 0
-    dark_matter_bonus:      int                = 0
-    dark_matter_bonus_pct:  int                = 0
-
-    ships_delta: dict = field(default_factory=dict)
-
-    loss_percent:       Optional[float] = None
-    pirate_strength:    Optional[int]   = None
-    pirate_win_chance:  Optional[int]   = None
-    pirate_loss_rate:   Optional[int]   = None
-
-    raw_text:    str           = ""
-    parse_error: Optional[str] = None
-
+    raw_text: str = ""
+    returned_at: Optional[datetime] = None
+    exp_number: Optional[int] = None
+    outcome_type: str = "unknown"
+    metal: int = 0
+    crystal: int = 0
+    deuterium: int = 0
+    dark_matter: int = 0
+    dark_matter_bonus: int = 0        # Schwarzer Horizont absolute amount
+    ships_gained: dict = field(default_factory=dict)
+    ships_lost: dict = field(default_factory=dict)
+    gt_lost: int = 0
+    loss_percent: int = 0
+    pirate_strength: int = 0
+    pirate_win_chance: int = 0
+    pirate_loss_rate: int = 0
     smuggler_code: Optional[str] = None
     smuggler_tier: Optional[int] = None
+    pirates_won: Optional[bool] = None
+    parse_error: Optional[str] = None
 
     @property
     def dedup_key(self) -> str:
@@ -246,109 +259,46 @@ class ParsedExpedition:
 
     @property
     def is_loss_event(self) -> bool:
-        return self.outcome_type in (
-            "storm", "contact_lost", "gravity", "vanished",
-            "pirates_loss", "pirates_win"
-        )
+        return self.outcome_type in ("storm", "contact_lost", "gravity")
 
     def classify_outcome(self) -> None:
-        base = self.outcome_raw
-
-        if base == "vanished":  self.outcome_type = "vanished"; return
-        if base == "failed":    self.outcome_type = "failed";   return
-        if base in ("storm", "contact_lost", "gravity"):
-            self.outcome_type = base; return
-
-        if base == "success":
-            if self.smuggler_code:
-                self.outcome_type = "smuggler_code"; return
-
+        """Refine outcome_type based on parsed data."""
+        if self.outcome_type == "success":
             has_res   = self.total_resources > 0
             has_dm    = self.dark_matter > 0
-            has_ships = bool(self.ships_delta)
+            has_ships = bool(self.ships_gained)
+            has_code  = bool(self.smuggler_code)
 
-            if self.pirate_strength:
-                if self.loss_percent is not None and self.loss_percent > 40:
-                    self.outcome_type = "pirates_loss"
-                else:
+            if has_code:
+                self.outcome_type = "smuggler_code"
+            elif has_res and has_ships and has_dm:
+                self.outcome_type = "success_full"
+            elif has_res and has_ships:
+                self.outcome_type = "success_mix"
+            elif has_res and has_dm:
+                self.outcome_type = "success_mix_dm"
+            elif has_res:
+                self.outcome_type = "success_res"
+            elif has_dm:
+                self.outcome_type = "success_dm"
+            elif has_ships:
+                self.outcome_type = "success_ships"
+
+            # Pirate sub-classification
+            if self.pirate_strength > 0:
+                if self.pirates_won is True:
                     self.outcome_type = "pirates_win"
-                return
+                elif self.pirates_won is False:
+                    self.outcome_type = "pirates_loss"
 
-            if   has_res and has_ships and has_dm: self.outcome_type = "success_full"
-            elif has_res and has_dm:               self.outcome_type = "success_mix_dm"
-            elif has_res and has_ships:            self.outcome_type = "success_mix"
-            elif has_res:                          self.outcome_type = "success_res"
-            elif has_dm:                           self.outcome_type = "success_dm"
-            elif has_ships:                        self.outcome_type = "success_ships"
-            else:                                  self.outcome_type = "failed"
-
-
-# ---------------------------------------------------------------------------
-# Block splitter
-# ---------------------------------------------------------------------------
-def _split_blocks(text: str) -> list[str]:
-    """Split by timestamp+header. Falls back to EXPEDITION # if no headers found."""
-    positions = [m.start() for m in _BLOCK_HEADER.finditer(text)]
-
-    if not positions:
-        # Fallback: split on lines containing EXPEDITION #NNN
-        # Walk backwards to include any preceding timestamp/outcome line
-        fb_positions = []
-        for m in _BLOCK_FALLBACK.finditer(text):
-            # Try to grab up to 3 lines before the EXPEDITION # line
-            start = max(0, text.rfind("\n", 0, m.start()))
-            # Look further back for a timestamp line
-            chunk_before = text[max(0, start - 200):start]
-            ts_m = list(_RE_TIMESTAMP.finditer(chunk_before))
-            if ts_m:
-                ts_start = start - 200 + ts_m[-1].start()
-                fb_positions.append(max(0, ts_start))
-            else:
-                fb_positions.append(max(0, m.start()))
-        positions = sorted(set(fb_positions))
-
-    if not positions:
-        return []
-
-    blocks = []
-    for i, pos in enumerate(positions):
-        end = positions[i + 1] if i + 1 < len(positions) else len(text)
-        blocks.append(text[pos:end].strip())
-    return blocks
-
-
-# ---------------------------------------------------------------------------
-# Line expander — handles BOTH tab-separated and space-separated columns
-# ---------------------------------------------------------------------------
-def _expand_lines(lines: list[str]) -> list[str]:
-    """
-    Convert each line into a flat list of tokens.
-    Handles:
-      - Tab-separated:   "Metall\t+1.200.000"  →  ["Metall", "+1.200.000"]
-      - Space-separated: "Grand Transporteur        -3.218.629"  →  ["Grand Transporteur", "-3.218.629"]
-    """
-    expanded: list[str] = []
-    for line in lines:
-        line = line.strip()
-        if not line:
-            continue
-        if "\t" in line:
-            parts = [p.strip() for p in line.split("\t") if p.strip()]
-            expanded.extend(parts)
-        else:
-            # Try splitting on 2+ spaces (space-padded HTML table copy)
-            parts = [p.strip() for p in re.split(r"  +", line) if p.strip()]
-            if len(parts) >= 2 and re.match(r"^[+-][\d.,\s]+$", parts[-1]):
-                # Last token looks like a number → label + value
-                expanded.extend(parts)
-            else:
-                expanded.append(line)
-    return expanded
+        # GT lost tracking
+        self.gt_lost = self.ships_lost.get("Großer Transporter", 0)
 
 
 # ---------------------------------------------------------------------------
 # Single block parser
 # ---------------------------------------------------------------------------
+
 def _parse_block(block: str) -> ParsedExpedition:
     result = ParsedExpedition(raw_text=block)
 
@@ -357,94 +307,201 @@ def _parse_block(block: str) -> ParsedExpedition:
         result.parse_error = "empty block"
         return result
 
-    # Timestamp
+    # --- Timestamp ---
     ts_match = _RE_TIMESTAMP.search(lines[0])
     if ts_match:
         result.returned_at = _parse_timestamp(ts_match.group(1), ts_match.group(2))
 
-    # Expedition number — scan first 10 lines
-    for line in lines[:10]:
+    # --- Expedition number ---
+    for line in lines[:8]:
         m = _RE_EXP_NUMBER.search(line)
         if m:
             result.exp_number = int(m.group(1))
             break
 
-    # Outcome headline — longest match wins
-    best_len = 0
-    for line in lines:
-        for keyword, outcome in OUTCOME_HEADLINES.items():
-            if keyword in line and len(keyword) > best_len:
-                result.outcome_raw = outcome
-                best_len = len(keyword)
-    if not result.outcome_raw:
-        result.outcome_raw = "failed"
-
-    # Loss percent
-    for line in lines:
-        m = _RE_LOSS_PERCENT.search(line)
-        if m:
-            result.loss_percent = float(m.group(1))
+    # --- Outcome headline ---
+    for line in lines[:12]:
+        for headline, outcome in OUTCOME_HEADLINES.items():
+            if headline.lower() in line.lower():
+                result.outcome_type = outcome
+                break
+        if result.outcome_type != "unknown":
             break
 
-    # Pirate data
-    for line in lines:
-        m = _RE_PIRATE_STRENGTH.search(line)
-        if m:
-            result.pirate_strength = _parse_num(m.group(1))
-        m2 = _RE_PIRATE_WIN_CHANCE.search(line)
-        if m2:
-            result.pirate_win_chance = int(m2.group(1))
-        m3 = _RE_PIRATE_LOSS_RATE.search(line)
-        if m3:
-            result.pirate_loss_rate = int(m3.group(1))
+    # --- Pirates won/lost ---
+    full_text = "\n".join(lines)
+    # Win indicators (DE/EN/FR)
+    pirate_win_patterns = [
+        "Express-Bergung", "Sieg!", "Sektor gesäubert", "Kampf gewonnen",
+        "Sie sichern Schiffe", "Die Piraten brechen die Formation",
+        "Capture", "Victory", "Sector secured", "Pirates routed",
+        "Vous sécurisez des vaisseaux", "Sektor gesäubert",
+        "Les pirates rompent la formation", "Jackpot",
+    ]
+    pirate_loss_patterns = [
+        "Kampf verloren", "Notrückzug", "Niederlage",
+        "Combat lost", "Emergency retreat", "Defeat",
+        "Combat perdu", "Repli d'urgence", "Défaite",
+        "Totale Störung",
+    ]
+    if any(p.lower() in full_text.lower() for p in pirate_win_patterns):
+        result.pirates_won = True
+    elif any(p.lower() in full_text.lower() for p in pirate_loss_patterns):
+        result.pirates_won = False
 
-    # DM bonus
-    for line in lines:
-        m = _RE_DM_BONUS.search(line)
-        if m:
-            result.dark_matter_bonus     = _parse_num(m.group(1))
-            result.dark_matter_bonus_pct = int(m.group(2))
-            break
+    # --- Schwarzer Horizont / Black Horizon ---
+    bh = _RE_BLACK_HORIZON.search(full_text)
+    if bh:
+        result.dark_matter_bonus = _parse_num(bh.group(1))
 
-    # Resources and ships — expand tabs AND spaces
-    expanded = _expand_lines(lines)
+    # --- Loss percent ---
+    lp = _RE_LOSS_PERCENT.search(full_text)
+    if lp:
+        result.loss_percent = int(lp.group(1))
 
-    i = 0
-    while i < len(expanded):
-        token = expanded[i]
+    # --- Pirate stats ---
+    ps = _RE_PIRATE_STRENGTH.search(full_text)
+    if ps:
+        result.pirate_strength = _parse_num(ps.group(1))
+    pw = _RE_PIRATE_WIN_CHANCE.search(full_text)
+    if pw:
+        result.pirate_win_chance = int(pw.group(1))
+    plr = _RE_PIRATE_LOSS_RATE.search(full_text)
+    if plr:
+        result.pirate_loss_rate = int(plr.group(1))
 
-        if token in RESOURCE_LABELS:
-            key = RESOURCE_LABELS[token]
-            if i + 1 < len(expanded):
-                val = _parse_num(expanded[i + 1])
-                if val != 0:
-                    if   key == "metal":       result.metal       = val
-                    elif key == "crystal":     result.crystal     = val
-                    elif key == "deuterium":   result.deuterium   = val
-                    elif key == "dark_matter": result.dark_matter = val
-                    i += 2
+    # --- Smuggler code ---
+    sc = _RE_SMUGGLER_CODE.search(full_text)
+    if sc:
+        result.smuggler_code = sc.group(1)
+        st = _RE_SMUGGLER_TIER.search(full_text)
+        if st:
+            result.smuggler_tier = int(st.group(1))
+
+    # --- Resource & ship parsing (line-by-line state machine) ---
+    MODE_NONE     = 0
+    MODE_RES      = 1
+    MODE_GAINED   = 2
+    MODE_LOST     = 3
+
+    mode = MODE_NONE
+    pending_label: Optional[str] = None
+
+    # Section header detection (all languages)
+    _SECTION_RES = {
+        "ressource", "resource",
+        # "menge"/"quantity"/"quantité" excluded — they only appear as column headers (right-of-tab)
+    }
+    _SECTION_RECOVERED = {
+        "geborgene schiffe", "geborgene einheiten", "recovered ships",
+        "erbeutete schiffe", "captured ships", "vaisseaux récupérés",
+        "vaisseaux capturés",
+    }
+    _SECTION_LOST = {
+        "bestätigte verluste", "confirmed losses", "pertes confirmées",
+    }
+
+    for line in lines[1:]:
+        ll = line.lower()
+
+        # Section detection
+        # Guard: "Vaisseaux\tQuantité" - the word "quantité" in value position should NOT
+        # trigger RES mode. Only trigger RES if the word is on a standalone line (left of tab is a section header)
+        _tab_parts = line.split("\t", 1) if "\t" in line else None
+        _right_side = _tab_parts[1].lower() if _tab_parts else ""
+        _left_side  = _tab_parts[0].strip().lower() if _tab_parts else ll
+
+        # If "quantity/quantité/menge" appears only on the RIGHT of a tab, it's a column header - skip
+        _right_triggers_res = any(h in _right_side for h in _SECTION_RES) if _tab_parts else False
+        _left_is_section    = any(h in _left_side for h in _SECTION_RES) if not _tab_parts else (_left_side in _SECTION_RES)
+
+        if _left_is_section and not _right_triggers_res:
+            mode = MODE_RES
+            pending_label = None
+            continue
+        elif not _tab_parts and any(h in ll for h in _SECTION_RES):
+            mode = MODE_RES
+            pending_label = None
+            continue
+        if any(h in ll for h in _SECTION_RECOVERED):
+            mode = MODE_GAINED
+            pending_label = None
+            continue
+        if any(h in ll for h in _SECTION_LOST):
+            mode = MODE_LOST
+            pending_label = None
+            continue
+
+        # Skip pure header lines (Schiffe / Ships / Vaisseaux  |  Menge / Qty)
+        if ll in ("schiffe", "ships", "vaisseaux", "menge", "quantity", "quantité",
+                  "schiffe\tmenge", "ships\tquantity", "vaisseaux\tquantité"):
+            continue
+
+        if mode == MODE_RES:
+            # Try tab-separated "Label\tValue"
+            if "\t" in line:
+                parts = line.split("\t", 1)
+                label_raw, val_raw = parts[0].strip(), parts[1].strip()
+                key = RESOURCE_LABELS.get(label_raw)
+                if key:
+                    setattr(result, key, _parse_num(val_raw))
                     continue
 
-        if token in SHIP_NAMES:
-            canonical = SHIP_NAME_MAP[token]
-            if i + 1 < len(expanded):
-                qty = expanded[i + 1].strip()
-                if re.match(r"^[+-][\d.,\s]+$", qty):
-                    val = _parse_num(qty)
-                    result.ships_delta[canonical] = result.ships_delta.get(canonical, 0) + val
-                    i += 2
+            # Pending label pattern (label on one line, value on next)
+            if pending_label is not None:
+                m = _RE_RESOURCE_LINE.match(line)
+                if m:
+                    key = RESOURCE_LABELS.get(pending_label)
+                    if key:
+                        setattr(result, key, _parse_num(m.group(1)))
+                    pending_label = None
                     continue
+                else:
+                    pending_label = None
 
-        i += 1
+            if line in RESOURCE_LABELS:
+                pending_label = line
+            else:
+                # Maybe "Label  Value" space-separated
+                for label, key in RESOURCE_LABELS.items():
+                    if line.startswith(label):
+                        val_part = line[len(label):].strip().lstrip(":").strip()
+                        if val_part:
+                            setattr(result, key, _parse_num(val_part))
+                        break
 
-    # Smuggler codes
-    for line in lines:
-        m = _RE_SMUGGLER_CODE.search(line)
-        if m:
-            result.smuggler_code = m.group(1)
-        m2 = _RE_SMUGGLER_TIER.search(line)
-        if m2:
-            result.smuggler_tier = int(m2.group(1))
+        elif mode in (MODE_GAINED, MODE_LOST):
+            # Try tab-separated "ShipName\tQty"
+            if "\t" in line:
+                parts = line.split("\t", 1)
+                ship_raw, qty_raw = parts[0].strip(), parts[1].strip()
+                canonical = SHIP_NAME_MAP.get(ship_raw)
+                if canonical:
+                    qty = abs(_parse_num(qty_raw))
+                    if mode == MODE_GAINED:
+                        result.ships_gained[canonical] = result.ships_gained.get(canonical, 0) + qty
+                    else:
+                        result.ships_lost[canonical]  = result.ships_lost.get(canonical, 0) + qty
+                continue
+
+            # Pending ship name pattern
+            if pending_label is not None:
+                m = _RE_SHIP_QTY.match(line)
+                if m:
+                    canonical = SHIP_NAME_MAP.get(pending_label)
+                    if canonical:
+                        qty = abs(_parse_num(m.group(1)))
+                        if mode == MODE_GAINED:
+                            result.ships_gained[canonical] = result.ships_gained.get(canonical, 0) + qty
+                        else:
+                            result.ships_lost[canonical]  = result.ships_lost.get(canonical, 0) + qty
+                    pending_label = None
+                    continue
+                else:
+                    pending_label = None
+
+            if line in SHIP_NAME_MAP:
+                pending_label = line
 
     result.classify_outcome()
     return result
@@ -453,19 +510,15 @@ def _parse_block(block: str) -> ParsedExpedition:
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
-def parse_expedition_text(raw: str) -> list[ParsedExpedition]:
-    """
-    Parse a full copy-pasted expedition message dump (DE, EN or FR).
-    Handles tab-separated and space-separated column formats.
-    Returns a list of ParsedExpedition objects (one per message block).
-    """
+
+def parse_expeditions(raw: str) -> list[ParsedExpedition]:
+    """Parse a full copy-pasted inbox dump. Returns list of ParsedExpedition."""
     blocks = _split_blocks(raw)
     results = []
     for block in blocks:
         try:
-            parsed = _parse_block(block)
-            results.append(parsed)
+            r = _parse_block(block)
         except Exception as e:
-            err = ParsedExpedition(raw_text=block, parse_error=str(e))
-            results.append(err)
+            r = ParsedExpedition(raw_text=block, parse_error=str(e))
+        results.append(r)
     return results
