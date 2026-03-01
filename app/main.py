@@ -143,10 +143,12 @@ async def prestige_page(request: Request):
             return RedirectResponse(url="/login", status_code=303)
         summary = await get_prestige_summary(db, int(u.id))
         board = await prestige_leaderboard(db, limit=10)
-        for entry in board:
+        for i, entry in enumerate(board):
             res = await db.execute(select(User).where(User.id == entry["user_id"]))
             usr = res.scalar_one_or_none()
-            entry["username"] = usr.username if usr else f"user_{entry['user_id']}"
+            entry["username"]        = usr.username if usr else f"user_{entry['user_id']}"
+            entry["rank"]            = i + 1
+            entry["is_current_user"] = (entry["user_id"] == int(u.id))
         return await _template_with_codes(request, "prestige.html", {
             "user": u,
             "summary": summary,
@@ -157,13 +159,20 @@ async def prestige_page(request: Request):
 
 @app.get("/api/prestige")
 async def api_prestige(request: Request):
-    """JSON prestige summary for the current user."""
+    """JSON prestige summary + leaderboard for the current user."""
     async with AsyncSessionLocal() as db:
         u, err = await require_jwt_user(request, db)
         if err:
             return err
         summary = await get_prestige_summary(db, int(u.id))
-        return JSONResponse({"ok": True, **summary})
+        board   = await prestige_leaderboard(db, limit=20)
+        # Enrich with usernames + is_current_user flag
+        for entry in board:
+            result = await db.execute(select(User).where(User.id == entry["user_id"]))
+            usr = result.scalar_one_or_none()
+            entry["username"]        = usr.username if usr else f"user_{entry['user_id']}"
+            entry["is_current_user"] = (entry["user_id"] == int(u.id))
+        return JSONResponse({"ok": True, **summary, "leaderboard": board})
 
 
 @app.get("/api/leaderboard")

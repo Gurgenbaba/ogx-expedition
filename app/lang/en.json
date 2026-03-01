@@ -265,5 +265,13 @@
   "profile.tab_token": "🔑 Token",
   "profile.next_rank": "→ {rank}",
   "nav.prestige": "🏆 Prestige",
-  "auth.profile": "Profile"
+  "auth.profile": "Profile",
+  "dash.res_metal": "Metal",
+  "dash.res_crystal": "Crystal",
+  "dash.res_deut": "Deuterium",
+  "dash.res_dm": "Dark Matter",
+  "dash.pirate_sig": "Enemy Signature",
+  "dash.pirate_win": "Win Chance",
+  "dash.pirate_loss": "Fleet Loss",
+  "login.tagline": "Fleet Analytics"
 }

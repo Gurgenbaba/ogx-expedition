@@ -265,5 +265,13 @@
   "profile.tab_token": "🔑 Token",
   "profile.next_rank": "→ {rank}",
   "nav.prestige": "🏆 Prestige",
-  "auth.profile": "Profil"
+  "auth.profile": "Profil",
+  "dash.res_metal": "Metall",
+  "dash.res_crystal": "Kristall",
+  "dash.res_deut": "Deuterium",
+  "dash.res_dm": "Dunkle Materie",
+  "dash.pirate_sig": "Feindsignatur",
+  "dash.pirate_win": "Siegchance",
+  "dash.pirate_loss": "Verluste",
+  "login.tagline": "Flotten-Analytik"
 }
