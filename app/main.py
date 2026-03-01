@@ -336,6 +336,151 @@ async def do_import(request: Request, raw_text: str = Form(...)):
     )
 
 
+# ─── API endpoints for OGX Expedition Collector userscript ────────────────
+
+@app.post("/api/import")
+async def api_import(request: Request, payload: dict = Body(...)):
+    """JSON import endpoint for the Collector userscript. Returns JSON instead of redirect."""
+    async with AsyncSessionLocal() as db:
+        u, err = await require_jwt_user(request, db)
+        if err:
+            return err
+
+        raw_text = str(payload.get("raw_text") or "").strip()
+        if not raw_text:
+            return JSONResponse({"ok": False, "error": "empty_text"}, status_code=400)
+
+        if len(raw_text.encode()) > settings.max_paste_bytes:
+            return JSONResponse({"ok": False, "error": "paste_too_large"}, status_code=413)
+
+        parsed = parse_expedition_text(raw_text)
+        if not parsed:
+            return JSONResponse({"ok": True, "count_new": 0, "count_duplicate": 0, "count_failed": 0, "message": "no_expeditions_found"})
+
+        uid = int(u.id)
+        count_new = count_dup = count_fail = 0
+
+        for p in parsed[:settings.max_expeditions_per_import]:
+            if p.parse_error:
+                count_fail += 1
+                continue
+
+            row = dict(
+                user_id=uid,
+                exp_number=p.exp_number,
+                returned_at=p.returned_at,
+                outcome_type=p.outcome_type,
+                metal=p.metal,
+                crystal=p.crystal,
+                deuterium=p.deuterium,
+                dark_matter=p.dark_matter,
+                dark_matter_bonus=p.dark_matter_bonus,
+                dark_matter_bonus_pct=p.dark_matter_bonus_pct,
+                ships_delta=p.ships_delta or None,
+                loss_percent=p.loss_percent,
+                pirate_strength=p.pirate_strength,
+                pirate_win_chance=p.pirate_win_chance,
+                pirate_loss_rate=p.pirate_loss_rate,
+                raw_text=None,
+                dedup_key=p.dedup_key,
+            )
+
+            if IS_POSTGRES:
+                stmt = pg_insert(Expedition).values(**row)
+                stmt = stmt.on_conflict_do_nothing(index_elements=["dedup_key"])
+                result = await db.execute(stmt)
+                if result.rowcount:
+                    count_new += 1
+                else:
+                    count_dup += 1
+            else:
+                exp = Expedition(**row)
+                try:
+                    async with db.begin_nested():
+                        db.add(exp)
+                        await db.flush()
+                    count_new += 1
+                except IntegrityError:
+                    count_dup += 1
+
+        for p in parsed:
+            if p.smuggler_code:
+                sc_row = dict(
+                    user_id=uid,
+                    exp_number=p.exp_number,
+                    code=encrypt_code(p.smuggler_code),
+                    code_hash=hash_code(p.smuggler_code),
+                    tier=p.smuggler_tier,
+                    found_at=p.returned_at,
+                )
+                if IS_POSTGRES:
+                    sc_stmt = pg_insert(SmugglerCode).values(**sc_row)
+                    sc_stmt = sc_stmt.on_conflict_do_nothing(index_elements=["user_id", "code_hash"])
+                    await db.execute(sc_stmt)
+                else:
+                    sc = SmugglerCode(**sc_row)
+                    try:
+                        async with db.begin_nested():
+                            db.add(sc)
+                            await db.flush()
+                    except IntegrityError:
+                        pass
+
+        imp = ExpeditionImport(
+            user_id=uid,
+            count_parsed=len(parsed),
+            count_new=count_new,
+            count_duplicate=count_dup,
+            count_failed=count_fail,
+        )
+        db.add(imp)
+        await db.commit()
+
+    return JSONResponse({
+        "ok": True,
+        "count_new": count_new,
+        "count_duplicate": count_dup,
+        "count_failed": count_fail,
+        "count_parsed": len(parsed),
+    })
+
+
+@app.post("/api/fleet")
+async def api_fleet(request: Request, payload: dict = Body(...)):
+    """
+    Receives fleet data from the Collector userscript.
+    Stores ships/slots/astro as the user's saved fleet in localStorage-compatible format.
+    Returns the fleet_key data so the optimizer can auto-load it.
+    """
+    async with AsyncSessionLocal() as db:
+        u, err = await require_jwt_user(request, db)
+        if err:
+            return err
+
+    ships       = {k: int(v) for k, v in (payload.get("ships") or {}).items() if int(v or 0) > 0}
+    slots       = int(payload.get("slots") or 0) or None
+    astro_level = int(payload.get("astro_level") or 0) or None
+    max_per_slot = int(payload.get("max_per_slot") or 0) or None
+
+    # Build the fleet object compatible with optimizer localStorage key "ogx_fleet_v1"
+    fleet = dict(ships)
+    if slots:
+        fleet["__slots"] = slots
+    if max_per_slot:
+        fleet["__max"] = max_per_slot
+
+    return JSONResponse({
+        "ok": True,
+        "fleet_key": "ogx_fleet_v1",
+        "fleet_data": fleet,
+        "ships_count": len(ships),
+        "slots": slots,
+        "astro_level": astro_level,
+        "max_per_slot": max_per_slot,
+    })
+
+
+
 @app.get("/stats", response_class=HTMLResponse)
 async def stats_page(request: Request):
     async with AsyncSessionLocal() as db:
