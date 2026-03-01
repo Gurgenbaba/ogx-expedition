@@ -208,5 +208,11 @@
   "duplicates": "Duplikate",
   "failed": "fehlgeschlagen",
   "error": "Fehler",
-  "import.placeholder": "25.02 02:14:33\tFlottenkommando\tExpeditionsbericht\nIonensturm EXPEDITION #179930\n..."
+  "import.placeholder": "25.02 02:14:33\tFlottenkommando\tExpeditionsbericht\nIonensturm EXPEDITION #179930\n...",
+  "auth.no_account": "Noch kein Konto? Registrieren via",
+  "auth.fields_required": "Benutzername und Passwort erforderlich.",
+  "auth.err_invalid": "Ungültiger Benutzername oder Passwort.",
+  "auth.err_disabled": "Konto ist deaktiviert.",
+  "auth.err_unknown": "Anmeldung fehlgeschlagen. Bitte erneut versuchen.",
+  "auth.err_network": "Netzwerkfehler. Bitte erneut versuchen."
 }

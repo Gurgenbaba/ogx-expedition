@@ -1,23 +1,275 @@
-{% extends "base.html" %}
-{% block title %}Login — OGX Expedition{% endblock %}
-{% block content %}
-<div style="max-width:420px;margin:80px auto;">
-  <div class="card" style="padding:28px;">
-    <h1 style="margin-bottom:6px">OGX Expedition</h1>
-    <p class="muted" style="margin-bottom:24px;font-size:13px">{{ t('auth.tagline') }}</p>
-    <div class="field" style="margin-bottom:12px">
-      <label class="fs-12 muted" style="display:block;margin-bottom:6px">{{ t('auth.username') }}</label>
-      <input type="text" id="inp-user" placeholder="{{ t('auth.username') }}" autocomplete="username"
-             style="width:100%;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.10);background:rgba(0,0,0,.25);color:rgba(255,255,255,.92);" />
+<!DOCTYPE html>
+<html lang="{{ lang or 'en' }}">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login — OGX Expedition</title>
+  <link rel="icon" type="image/png" href="/static/favicon.ico" />
+  <link rel="stylesheet" href="/static/app.css" />
+  <style>
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg-0);
+      padding: 24px;
+    }
+
+    .login-wrap {
+      width: 100%;
+      max-width: 400px;
+    }
+
+    /* Logo */
+    .login-logo {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+    .login-logo .brand-mark {
+      font-family: var(--font-head);
+      font-size: 28px;
+      font-weight: 900;
+      color: var(--acc-0);
+      letter-spacing: .08em;
+    }
+    .login-logo .brand-rest {
+      font-family: var(--font-head);
+      font-size: 28px;
+      font-weight: 300;
+      color: var(--text-0);
+      letter-spacing: .12em;
+      margin-left: 6px;
+    }
+    .login-logo .tagline {
+      display: block;
+      font-size: 11px;
+      color: rgba(180,210,255,.35);
+      letter-spacing: .2em;
+      text-transform: uppercase;
+      margin-top: 6px;
+    }
+
+    /* Card */
+    .login-card {
+      background: linear-gradient(145deg, rgba(9,18,38,.96), rgba(5,10,22,.99));
+      border: 1px solid rgba(91,163,245,.18);
+      border-radius: 20px;
+      padding: 32px;
+      box-shadow: 0 8px 40px rgba(0,0,0,.5), 0 0 0 1px rgba(91,163,245,.06);
+    }
+
+    .login-card h2 {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-0);
+      margin: 0 0 20px;
+    }
+
+    /* Fields */
+    .login-field {
+      margin-bottom: 14px;
+    }
+    .login-field label {
+      display: block;
+      font-size: 11px;
+      color: rgba(180,210,255,.45);
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .login-field input {
+      width: 100%;
+      padding: 11px 14px;
+      background: rgba(0,0,0,.3);
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 12px;
+      color: var(--text-0);
+      font-size: 14px;
+      outline: none;
+      box-sizing: border-box;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .login-field input:focus {
+      border-color: rgba(91,163,245,.45);
+      box-shadow: 0 0 0 3px rgba(91,163,245,.08);
+    }
+    .login-field input::placeholder {
+      color: rgba(180,210,255,.2);
+    }
+
+    /* Button */
+    .login-btn {
+      width: 100%;
+      padding: 12px;
+      background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity .15s, transform .1s;
+      margin-top: 4px;
+      letter-spacing: .04em;
+    }
+    .login-btn:hover { opacity: .9; }
+    .login-btn:active { transform: scale(.98); }
+    .login-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+    /* Error */
+    .login-error {
+      display: none;
+      background: rgba(239,68,68,.1);
+      border: 1px solid rgba(239,68,68,.25);
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 13px;
+      color: #fca5a5;
+      margin-top: 14px;
+    }
+
+    /* Oracle link */
+    .login-footer {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 12px;
+      color: rgba(180,210,255,.35);
+    }
+    .login-footer a {
+      color: rgba(91,163,245,.7);
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .login-footer a:hover { color: rgba(91,163,245,1); }
+
+    /* Language switcher */
+    .login-lang {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .login-lang a {
+      font-size: 11px;
+      color: rgba(180,210,255,.3);
+      text-decoration: none;
+      padding: 3px 8px;
+      border-radius: 6px;
+      transition: color .15s, background .15s;
+    }
+    .login-lang a:hover, .login-lang a.active {
+      color: rgba(91,163,245,.9);
+      background: rgba(91,163,245,.1);
+    }
+  </style>
+</head>
+<body>
+
+<div class="login-wrap">
+
+  <!-- Logo -->
+  <div class="login-logo">
+    <div>
+      <span class="brand-mark">OGX</span>
+      <span class="brand-rest">EXPEDITION</span>
     </div>
-    <div class="field" style="margin-bottom:20px">
-      <label class="fs-12 muted" style="display:block;margin-bottom:6px">{{ t('auth.password') }}</label>
-      <input type="password" id="inp-pass" placeholder="{{ t('auth.password') }}" autocomplete="current-password"
-             style="width:100%;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.10);background:rgba(0,0,0,.25);color:rgba(255,255,255,.92);" />
-    </div>
-    <button class="btn" id="btn-do-login" style="width:100%">{{ t('auth.login_btn') }}</button>
-    <div id="auth-error" class="auth-error" style="display:none;margin-top:12px"></div>
+    <span class="tagline">Fleet Analytics</span>
   </div>
+
+  <!-- Card -->
+  <div class="login-card">
+    <h2>{{ t('auth.login') }}</h2>
+
+    <div class="login-field">
+      <label for="inp-user">{{ t('auth.username') }}</label>
+      <input type="text" id="inp-user" autocomplete="username"
+             placeholder="{{ t('auth.username') | lower }}" autofocus />
+    </div>
+
+    <div class="login-field">
+      <label for="inp-pass">{{ t('auth.password') }}</label>
+      <input type="password" id="inp-pass" autocomplete="current-password"
+             placeholder="{{ t('auth.password') | lower }}" />
+    </div>
+
+    <button class="login-btn" id="btn-do-login">{{ t('auth.login_btn') }}</button>
+
+    <div class="login-error" id="auth-error"></div>
+  </div>
+
+  <!-- Register via Oracle -->
+  <div class="login-footer">
+    {{ t('auth.no_account') }}
+    <a href="https://ogx-oraclev2-production.up.railway.app" target="_blank">OGX Oracle →</a>
+  </div>
+
 </div>
-{% endblock %}
-{% block scripts %}<script src="/static/auth.js"></script>{% endblock %}
+
+<script>
+(function(){
+  "use strict";
+  const TOKEN_KEY  = "ogx_token";
+  const COOKIE_NAME = "ogx_token";
+
+  function setToken(t){
+    try{ localStorage.setItem(TOKEN_KEY, t); }catch{}
+    document.cookie = `${COOKIE_NAME}=${t}; path=/; SameSite=Strict; Max-Age=86400`;
+  }
+  function getToken(){
+    try{ return localStorage.getItem(TOKEN_KEY)||""; }catch{ return ""; }
+  }
+
+  // already logged in → go home
+  if(getToken()){
+    // verify against server
+    fetch("/auth/me", {headers:{Authorization:"Bearer "+getToken()}})
+      .then(r=>r.json()).then(d=>{ if(d.ok) window.location.href="/"; })
+      .catch(()=>{});
+  }
+
+  function showError(msg){
+    const el = document.getElementById("auth-error");
+    el.textContent = msg;
+    el.style.display = "block";
+  }
+
+  async function doLogin(){
+    const u = document.getElementById("inp-user").value.trim().toLowerCase();
+    const p = document.getElementById("inp-pass").value;
+    const btn = document.getElementById("btn-do-login");
+    if(!u || !p){ showError("{{ t('auth.fields_required') }}"); return; }
+    btn.disabled = true;
+    btn.textContent = "…";
+    try{
+      const res = await fetch("/auth/login",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({username:u, password:p})
+      });
+      const data = await res.json();
+      if(data.ok){
+        setToken(data.token);
+        window.location.href = "/";
+      } else {
+        const ERRORS = {
+          "invalid_login": "{{ t('auth.err_invalid') }}",
+          "account_disabled": "{{ t('auth.err_disabled') }}",
+        };
+        showError(ERRORS[data.error] || data.error || "{{ t('auth.err_unknown') }}");
+      }
+    } catch(e){
+      showError("{{ t('auth.err_network') }}");
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "{{ t('auth.login_btn') }}";
+    }
+  }
+
+  document.getElementById("btn-do-login").addEventListener("click", doLogin);
+  document.getElementById("inp-user").addEventListener("keydown", e=>{ if(e.key==="Enter") document.getElementById("inp-pass").focus(); });
+  document.getElementById("inp-pass").addEventListener("keydown", e=>{ if(e.key==="Enter") doLogin(); });
+})();
+</script>
+</body>
+</html>

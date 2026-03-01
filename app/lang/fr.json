@@ -208,5 +208,11 @@
   "duplicates": "doublons",
   "failed": "echouees",
   "error": "Erreur",
-  "import.placeholder": "25.02 02:14:33\tCommandement de flotte\tRapport d'expedition\nTempete ionique EXPEDITION #179930\n..."
+  "import.placeholder": "25.02 02:14:33\tCommandement de flotte\tRapport d'expedition\nTempete ionique EXPEDITION #179930\n...",
+  "auth.no_account": "Pas de compte ? Inscrivez-vous via",
+  "auth.fields_required": "Nom d'utilisateur et mot de passe requis.",
+  "auth.err_invalid": "Nom d'utilisateur ou mot de passe invalide.",
+  "auth.err_disabled": "Compte désactivé.",
+  "auth.err_unknown": "Connexion échouée. Veuillez réessayer.",
+  "auth.err_network": "Erreur réseau. Veuillez réessayer."
 }

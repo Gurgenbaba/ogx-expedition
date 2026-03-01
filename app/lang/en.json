@@ -208,5 +208,11 @@
   "duplicates": "duplicates",
   "failed": "failed",
   "error": "Error",
-  "import.placeholder": "25.02 02:14:33\tFleet Command\tExpedition Report\nIon Storm EXPEDITION #179930\n..."
+  "import.placeholder": "25.02 02:14:33\tFleet Command\tExpedition Report\nIon Storm EXPEDITION #179930\n...",
+  "auth.no_account": "Don't have an account? Register via",
+  "auth.fields_required": "Username and password required.",
+  "auth.err_invalid": "Invalid username or password.",
+  "auth.err_disabled": "Account is disabled.",
+  "auth.err_unknown": "Login failed. Please try again.",
+  "auth.err_network": "Network error. Please try again."
 }
