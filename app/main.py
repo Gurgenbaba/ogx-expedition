@@ -196,7 +196,7 @@ async def dashboard(request: Request):
             return _template(request, "login.html", {"active_nav": "dashboard"})
 
         exps = (await db.execute(
-            select(Expedition).where(Expedition.user_id == u.id).order_by(Expedition.returned_at.desc()).limit(500)
+            select(Expedition).where(Expedition.user_id == u.id).order_by(Expedition.returned_at.desc())
         )).scalars().all()
 
         stats = get_user_stats_summary(list(exps))
@@ -207,7 +207,7 @@ async def dashboard(request: Request):
             outcome_counts[e.outcome_type] = outcome_counts.get(e.outcome_type, 0) + 1
 
         # Resources over time (last 50)
-        recent = [e for e in exps[:50] if e.metal > 0]
+        recent = [e for e in exps[:200] if e.metal > 0]
 
         return await _template_with_codes(request, "dashboard.html", {
             "user": u,

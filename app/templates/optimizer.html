@@ -137,16 +137,6 @@
 
 
 
-    <!-- Suggestions -->
-    <div id="suggestions-box" style="display:none;margin-bottom:16px">
-      <div class="card" style="padding:16px 20px;border-color:rgba(251,191,36,.2)">
-        <div class="fs-12 muted" style="margin-bottom:10px;letter-spacing:.06em;text-transform:uppercase">
-          {{ t('opt.suggestions') }}
-        </div>
-        <div id="suggestions-list"></div>
-      </div>
-    </div>
-
     <!-- Suggestions: what to add -->
     <div id="suggestions-box" style="display:none">
       <div class="card" style="padding:20px;border-color:rgba(192,132,252,.2)">
@@ -501,21 +491,6 @@
       }
 
 
-
-      // Suggestions
-      if(data.suggestions && data.suggestions.length){
-        const box = document.getElementById("suggestions-box");
-        const list = document.getElementById("suggestions-list");
-        list.innerHTML = data.suggestions.map(s => `
-          <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.05)">
-            <span style="font-size:1.1rem">${s.type==='cargo'?'📦':'⚔️'}</span>
-            <div>
-              <div style="font-weight:600;font-size:13px">+ ${s.count.toLocaleString("de-DE")} ${(window.I18N&&window.I18N["ship."+s.ship])||s.ship}</div>
-              <div class="muted fs-12">${s.reason}</div>
-            </div>
-          </div>`).join("");
-        box.style.display = "block";
-      }
 
       // Global warnings
       if(data.warnings && data.warnings.length){
