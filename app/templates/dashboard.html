@@ -2,7 +2,7 @@
 {% block title %}Dashboard — OGX Expedition{% endblock %}
 {% block content %}
 
-<div class="row between" style="margin-bottom:20px">
+<div class="row between" style="margin-bottom:24px">
   <div>
     <h1>{{ t('dash.title') }}</h1>
     <p class="muted" style="font-size:13px;margin-top:4px">{{ t('dash.subtitle', total=total) }}</p>
@@ -17,143 +17,200 @@
 </div>
 {% else %}
 
-{# ── KPI Row ── #}
-<div class="kpi-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:24px">
-
-  <div class="card kpi-card">
-    <div class="kpi-label">{{ t('dash.kpi_total') }}</div>
-    <div class="kpi-value">{{ stats.total }}</div>
+{# ── Log Header ── #}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+  <div style="display:flex;align-items:center;gap:10px">
+    <div style="width:3px;height:20px;background:var(--acc-0);border-radius:2px"></div>
+    <h2 style="margin:0;font-size:14px;letter-spacing:.6px;text-transform:uppercase">Flottenkommando — Expeditionslog</h2>
+    <span class="muted fs-12">letzte {{ recent | length }} Einsätze</span>
   </div>
-  <div class="card kpi-card">
-    <div class="kpi-label">{{ t('dash.kpi_success') }}</div>
-    <div class="kpi-value" style="color:var(--good)">{{ stats.success_rate_pct }}%</div>
-  </div>
-  <div class="card kpi-card">
-    <div class="kpi-label">{{ t('dash.kpi_vanish') }}</div>
-    <div class="kpi-value" style="color:var(--bad)">{{ stats.vanish_rate_pct }}%</div>
-  </div>
-  <div class="card kpi-card">
-    <div class="kpi-label">{{ t('dash.kpi_metal') }}</div>
-    <div class="kpi-value">{{ stats.total_metal | fmt_num }}</div>
-  </div>
-  <div class="card kpi-card">
-    <div class="kpi-label">{{ t('dash.kpi_crystal') }}</div>
-    <div class="kpi-value">{{ stats.total_crystal | fmt_num }}</div>
-  </div>
-  <div class="card kpi-card">
-    <div class="kpi-label">{{ t('dash.kpi_deut') }}</div>
-    <div class="kpi-value">{{ stats.total_deut | fmt_num }}</div>
-  </div>
-  <div class="card kpi-card">
-    <div class="kpi-label">{{ t('dash.kpi_dm') }}</div>
-    <div class="kpi-value" style="color:#c084fc">{{ stats.total_dm | fmt_num }}</div>
-  </div>
-  <div class="card kpi-card">
-    <div class="kpi-label">{{ t('dash.kpi_gt_lost') }}</div>
-    <div class="kpi-value" style="color:var(--warn)">{{ stats.total_gt_lost | fmt_int }}</div>
-  </div>
-
+  <a href="/stats" class="btn btn-sm ghost" style="font-size:11px;letter-spacing:.05em">Alle Stats →</a>
 </div>
 
-{# ── Outcome breakdown ── #}
-<div class="row gap" style="align-items:flex-start;flex-wrap:wrap;margin-bottom:24px">
-  <div class="card" style="flex:1;min-width:280px;padding:20px">
-    <h2>{{ t('dash.outcome_chart') }}</h2>
-    <div id="outcome-chart-wrap">
-      <canvas id="outcomeChart" height="220"></canvas>
+{# ── Cards ── #}
+<div class="exp-log-grid">
+{% for e in recent %}
+
+{%- set otype = e.outcome_type -%}
+{%- if otype in ['success_res','success_mix','success_full','success_mix_dm'] -%}{%- set accent='#34d399' -%}{%- set argb='52,211,153' -%}{%- set icon='📦' -%}
+{%- elif otype == 'success_ships' -%}{%- set accent='#60a5fa' -%}{%- set argb='96,165,250' -%}{%- set icon='🚀' -%}
+{%- elif otype == 'success_dm' -%}{%- set accent='#c084fc' -%}{%- set argb='192,132,252' -%}{%- set icon='💎' -%}
+{%- elif otype == 'pirates_win' -%}{%- set accent='#f59e0b' -%}{%- set argb='245,158,11' -%}{%- set icon='⚔️' -%}
+{%- elif otype == 'pirates_loss' -%}{%- set accent='#ef4444' -%}{%- set argb='239,68,68' -%}{%- set icon='💀' -%}
+{%- elif otype == 'vanished' -%}{%- set accent='#fb7185' -%}{%- set argb='251,113,133' -%}{%- set icon='👻' -%}
+{%- elif otype == 'storm' -%}{%- set accent='#fb923c' -%}{%- set argb='251,146,60' -%}{%- set icon='⚡' -%}
+{%- elif otype == 'contact_lost' -%}{%- set accent='#f97316' -%}{%- set argb='249,115,22' -%}{%- set icon='📡' -%}
+{%- elif otype == 'gravity' -%}{%- set accent='#fbbf24' -%}{%- set argb='251,191,36' -%}{%- set icon='🌀' -%}
+{%- elif otype == 'smuggler_code' -%}{%- set accent='#06b6d4' -%}{%- set argb='6,182,212' -%}{%- set icon='🔑' -%}
+{%- else -%}{%- set accent='#64748b' -%}{%- set argb='100,116,139' -%}{%- set icon='—' -%}
+{%- endif -%}
+
+<div class="exp-card" style="--ca:{{ accent }};--cr:{{ argb }}">
+
+  {# Header #}
+  <div class="exp-card__head">
+    <span class="exp-card__icon">{{ icon }}</span>
+    <div class="exp-card__meta">
+      <div class="exp-card__type">{{ t('outcome.' + otype) }}</div>
+      <div class="exp-card__id mono fs-11">
+        {% if e.exp_number %}#{{ e.exp_number }}{% else %}—{% endif %}
+        <span style="opacity:.35;margin:0 4px">·</span>
+        {{ e.returned_at.strftime("%d.%m.%Y %H:%M") if e.returned_at else "—" }}
+      </div>
     </div>
+    <span class="outcome-badge outcome-{{ otype }}" style="font-size:9px;align-self:flex-start">{{ otype | replace("_"," ") | upper }}</span>
   </div>
 
-  <div class="card" style="flex:1;min-width:280px;padding:20px">
-    <h2>{{ t('dash.avg_title') }}</h2>
-    <table class="table" style="margin-top:0">
-      <tbody>
-        <tr><td class="muted">{{ t('dash.avg_metal') }}</td><td style="text-align:right;font-weight:600">{{ stats.avg_metal | fmt_num }}</td></tr>
-        <tr><td class="muted">{{ t('dash.avg_crystal') }}</td><td style="text-align:right;font-weight:600">{{ stats.avg_crystal | fmt_num }}</td></tr>
-        <tr><td class="muted">{{ t('dash.avg_deut') }}</td><td style="text-align:right;font-weight:600">{{ stats.avg_deut | fmt_num }}</td></tr>
-        <tr><td class="muted">{{ t('dash.avg_total') }}</td>
-            <td style="text-align:right;font-weight:700;color:var(--acc-1)">{{ stats.avg_total_res | fmt_num }}</td></tr>
-      </tbody>
-    </table>
-    <div style="margin-top:16px">
-      <a href="/optimizer" class="btn" style="width:100%;text-align:center">{{ t('dash.optimizer_btn') }}</a>
+  {# Resources #}
+  {% if e.metal > 0 or e.crystal > 0 or e.deuterium > 0 or e.dark_matter > 0 %}
+  <div class="exp-card__res">
+    {% if e.metal > 0 %}
+    <div class="res-row">
+      <span class="res-dot" style="background:#94a3b8"></span>
+      <span class="res-lbl">Metall</span>
+      <span class="res-val mono" style="color:#cbd5e1">{{ e.metal | fmt_num }}</span>
     </div>
+    {% endif %}
+    {% if e.crystal > 0 %}
+    <div class="res-row">
+      <span class="res-dot" style="background:#7dd3fc"></span>
+      <span class="res-lbl">Kristall</span>
+      <span class="res-val mono" style="color:#7dd3fc">{{ e.crystal | fmt_num }}</span>
+    </div>
+    {% endif %}
+    {% if e.deuterium > 0 %}
+    <div class="res-row">
+      <span class="res-dot" style="background:#86efac"></span>
+      <span class="res-lbl">Deuterium</span>
+      <span class="res-val mono" style="color:#86efac">{{ e.deuterium | fmt_num }}</span>
+    </div>
+    {% endif %}
+    {% if e.dark_matter > 0 %}
+    <div class="res-row">
+      <span class="res-dot" style="background:#c084fc"></span>
+      <span class="res-lbl">Dunkle Materie</span>
+      <span class="res-val mono" style="color:#c084fc">{{ e.dark_matter | fmt_int }}</span>
+    </div>
+    {% endif %}
   </div>
+  {% endif %}
+
+  {# Ships #}
+  {% if e.ships_delta %}
+  <div class="exp-card__ships">
+    {% for ship, qty in e.ships_delta.items() %}
+      {% if qty > 0 %}<span class="ship-tag ship-tag--gain">+{{ qty | fmt_int }} {{ t('ship.' + ship) }}</span>
+      {% elif qty < 0 %}<span class="ship-tag ship-tag--loss">{{ qty | fmt_int }} {{ t('ship.' + ship) }}</span>
+      {% endif %}
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {# Pirates #}
+  {% if e.pirate_strength or e.pirate_win_chance %}
+  <div class="exp-card__pirates">
+    {% if e.pirate_strength %}
+    <div class="pirate-stat"><span class="pirate-lbl">Feindsignatur</span><span class="pirate-val mono">{{ e.pirate_strength | fmt_int }}</span></div>
+    {% endif %}
+    {% if e.pirate_win_chance %}
+    <div class="pirate-stat">
+      <span class="pirate-lbl">Siegchance</span>
+      <span class="pirate-val mono" style="color:{% if e.pirate_win_chance >= 70 %}var(--good){% elif e.pirate_win_chance >= 50 %}var(--warn){% else %}var(--bad){% endif %}">~{{ e.pirate_win_chance }}%</span>
+    </div>
+    {% endif %}
+    {% if e.loss_percent %}
+    <div class="pirate-stat"><span class="pirate-lbl">Verluste</span><span class="pirate-val mono" style="color:var(--bad)">{{ e.loss_percent | int }}%</span></div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <div class="exp-card__bar"></div>
 </div>
-
-{# ── Recent expeditions ── #}
-<div class="card" style="padding:20px;margin-bottom:24px">
-  <h2>{{ t('dash.recent_title') }}</h2>
-  <div style="overflow-x:auto">
-    <table class="table">
-      <thead>
-        <tr>
-          <th>{{ t('dash.col_num') }}</th>
-          <th>{{ t('dash.col_date') }}</th>
-          <th>{{ t('dash.col_type') }}</th>
-          <th>{{ t('dash.col_metal') }}</th>
-          <th>{{ t('dash.col_crystal') }}</th>
-          <th>{{ t('dash.col_deut') }}</th>
-          <th>{{ t('dash.col_dm') }}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for e in recent %}
-        <tr>
-          <td class="mono dim">{{ e.exp_number or "—" }}</td>
-          <td class="mono fs-12">{{ e.returned_at.strftime("%d.%m %H:%M") if e.returned_at else "—" }}</td>
-          <td><span class="outcome-badge outcome-{{ e.outcome_type }}">{{ e.outcome_type | replace("_"," ") }}</span></td>
-          <td class="mono">{{ e.metal | fmt_num }}</td>
-          <td class="mono">{{ e.crystal | fmt_num }}</td>
-          <td class="mono">{{ e.deuterium | fmt_num }}</td>
-          <td class="mono" style="color:#c084fc">{{ e.dark_matter | fmt_num if e.dark_matter else "—" }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+{% endfor %}
 </div>
 
 {% endif %}
+
+<style>
+.exp-log-grid {
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:12px;
+  margin-bottom:32px;
+}
+@media(max-width:860px){.exp-log-grid{grid-template-columns:1fr}}
+
+.exp-card {
+  position:relative;
+  background:linear-gradient(145deg,rgba(9,18,38,.94),rgba(5,10,22,.98));
+  border:1px solid rgba(var(--cr),.22);
+  border-radius:16px;
+  padding:18px 20px 16px;
+  overflow:hidden;
+  transition:border-color .18s,box-shadow .18s,transform .15s;
+  box-shadow:0 3px 16px rgba(0,0,0,.35);
+}
+.exp-card:hover {
+  border-color:rgba(var(--cr),.44);
+  box-shadow:0 6px 28px rgba(0,0,0,.5),0 0 0 1px rgba(var(--cr),.1);
+  transform:translateY(-2px);
+}
+.exp-card::before {
+  content:'';position:absolute;top:-40px;left:-30px;width:140px;height:140px;
+  background:radial-gradient(circle,rgba(var(--cr),.1) 0%,transparent 65%);
+  pointer-events:none;
+}
+
+.exp-card__head {
+  display:flex;align-items:flex-start;gap:12px;margin-bottom:14px;
+}
+.exp-card__icon {font-size:22px;line-height:1;flex-shrink:0;margin-top:1px}
+.exp-card__meta {flex:1;min-width:0}
+.exp-card__type {
+  font-family:var(--font-head);font-size:15px;font-weight:700;
+  color:var(--ca);letter-spacing:.4px;line-height:1.2;
+}
+.exp-card__id {color:rgba(180,210,255,.4);margin-top:3px}
+
+.exp-card__res {
+  display:grid;grid-template-columns:repeat(2,1fr);gap:5px 12px;
+  padding:11px 14px;
+  background:rgba(0,0,0,.28);
+  border:1px solid rgba(255,255,255,.05);
+  border-radius:10px;
+  margin-bottom:10px;
+}
+.res-row {display:flex;align-items:center;gap:8px;font-size:12px}
+.res-dot {width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.res-lbl {color:rgba(180,210,255,.42);flex:1;font-size:11px}
+.res-val {font-size:12px;font-weight:600}
+
+.exp-card__ships {
+  display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;
+}
+.ship-tag {
+  font-family:var(--font-mono);font-size:10px;font-weight:600;
+  padding:3px 8px;border-radius:6px;
+}
+.ship-tag--gain {background:rgba(52,211,153,.12);color:#34d399;border:1px solid rgba(52,211,153,.22)}
+.ship-tag--loss {background:rgba(251,113,133,.12);color:#fb7185;border:1px solid rgba(251,113,133,.22)}
+
+.exp-card__pirates {
+  display:flex;gap:20px;flex-wrap:wrap;
+  padding:10px 14px;
+  background:rgba(245,158,11,.06);
+  border:1px solid rgba(245,158,11,.16);
+  border-radius:10px;
+  margin-bottom:10px;
+}
+.pirate-stat {display:flex;flex-direction:column;gap:2px}
+.pirate-lbl {font-size:10px;color:rgba(200,200,200,.45);letter-spacing:.04em;text-transform:uppercase}
+.pirate-val {font-size:13px;font-weight:700;color:var(--text-0)}
+
+.exp-card__bar {
+  position:absolute;bottom:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,rgba(var(--cr),.85) 0%,rgba(var(--cr),.15) 100%);
+}
+</style>
 {% endblock %}
-
-{% block scripts %}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<script>
-(function(){
-  const counts = {{ outcome_counts | tojson }};
-  if (!counts || !Object.keys(counts).length) return;
-
-  const COLORS = {
-    success_res:    "#34d399",
-    success_ships:  "#6ee7b7",
-    success_mix:    "#10b981",
-    success_dm:     "#c084fc",
-    success_mix_dm: "#a855f7",
-    success_full:   "#7c3aed",
-    pirates_win:    "#f59e0b",
-    pirates_loss:   "#ef4444",
-    storm:          "#fb923c",
-    contact_lost:   "#f97316",
-    gravity:        "#fbbf24",
-    vanished:       "#fb7185",
-    failed:         "#475569",
-  };
-
-  const labels = Object.keys(counts).map(k => (window.I18N && window.I18N["outcome."+k]) || k.replace(/_/g," "));
-  const data   = Object.values(counts);
-  const colors = Object.keys(counts).map(k => COLORS[k] || "#64748b");
-
-  new Chart(document.getElementById("outcomeChart"), {
-    type: "doughnut",
-    data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 1, borderColor: "rgba(0,0,0,.3)" }] },
-    options: {
-      plugins: {
-        legend: { labels: { color: "rgba(200,225,255,.78)", font: { size: 12 } } }
-      },
-      cutout: "60%",
-    }
-  });
-})();
-</script>
-{% endblock %}
+{% block scripts %}{% endblock %}

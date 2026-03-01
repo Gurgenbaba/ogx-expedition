@@ -207,7 +207,7 @@ async def dashboard(request: Request):
             outcome_counts[e.outcome_type] = outcome_counts.get(e.outcome_type, 0) + 1
 
         # Resources over time (last 50)
-        recent = [e for e in exps[:200] if e.metal > 0]
+        recent = exps[:50]  # all types, newest first
 
         return await _template_with_codes(request, "dashboard.html", {
             "user": u,
@@ -349,21 +349,30 @@ async def stats_page(request: Request):
 
         stats = get_user_stats_summary(list(exps))
 
-        # By outcome type
+        from collections import defaultdict
+        import datetime as _dt
+
+        # By outcome type (for table)
         by_type: dict[str, dict] = {}
         for e in exps:
-            t = e.outcome_type
-            if t not in by_type:
-                by_type[t] = {"count": 0, "metal": 0, "crystal": 0, "deut": 0, "dm": 0, "gt_lost": 0}
-            by_type[t]["count"] += 1
-            by_type[t]["metal"] += e.metal
-            by_type[t]["crystal"] += e.crystal
-            by_type[t]["deut"] += e.deuterium
-            by_type[t]["dm"] += e.dark_matter
+            ot = e.outcome_type
+            if ot not in by_type:
+                by_type[ot] = {"count": 0, "metal": 0, "crystal": 0, "deut": 0, "dm": 0, "gt_lost": 0,
+                                "ships_lost": {}, "ships_gained": {}}
+            by_type[ot]["count"] += 1
+            by_type[ot]["metal"] += e.metal
+            by_type[ot]["crystal"] += e.crystal
+            by_type[ot]["deut"] += e.deuterium
+            by_type[ot]["dm"] += e.dark_matter
             if e.ships_delta:
-                by_type[t]["gt_lost"] += abs(e.ships_delta.get("Großer Transporter", 0))
+                by_type[ot]["gt_lost"] += abs(e.ships_delta.get("Großer Transporter", 0))
+                for ship, qty in e.ships_delta.items():
+                    if qty < 0:
+                        by_type[ot]["ships_lost"][ship] = by_type[ot]["ships_lost"].get(ship, 0) + abs(qty)
+                    elif qty > 0:
+                        by_type[ot]["ships_gained"][ship] = by_type[ot]["ships_gained"].get(ship, 0) + qty
 
-        # Ships gained (across all expeditions)
+        # Ships totals
         ships_gained: dict[str, int] = {}
         ships_lost: dict[str, int] = {}
         for e in exps:
@@ -375,13 +384,35 @@ async def stats_page(request: Request):
                 else:
                     ships_lost[ship] = ships_lost.get(ship, 0) + abs(qty)
 
+        # Weekly timeline (for chart)
+        weekly: dict = defaultdict(lambda: defaultdict(int))
+        for e in exps:
+            if e.returned_at:
+                iso = e.returned_at.isocalendar()
+                wk = f"{iso[0]}-W{iso[1]:02d}"
+                weekly[wk][e.outcome_type] += 1
+
+        today = _dt.date.today()
+        timeline = []
+        all_outcome_types = list(by_type.keys())
+        for i in range(15, -1, -1):
+            d = today - _dt.timedelta(weeks=i)
+            iso = d.isocalendar()
+            wk = f"{iso[0]}-W{iso[1]:02d}"
+            entry = {"week": wk}
+            for ot in all_outcome_types:
+                entry[ot] = weekly[wk].get(ot, 0)
+            timeline.append(entry)
+
         return await _template_with_codes(request, "stats.html", {
             "user": u,
             "stats": stats,
-            "by_type": by_type,
+            "by_type": dict(sorted(by_type.items(), key=lambda x: -x[1]["count"])),
             "ships_gained": dict(sorted(ships_gained.items(), key=lambda x: -x[1])),
             "ships_lost": dict(sorted(ships_lost.items(), key=lambda x: -x[1])),
             "total": len(exps),
+            "timeline": timeline,
+            "outcome_types": all_outcome_types,
             "active_nav": "stats",
         }, db, u)
 
@@ -594,6 +625,11 @@ async def delete_all_expeditions(request: Request):
 
 @app.get("/outcomes", response_class=HTMLResponse)
 async def outcomes_page(request: Request):
+    return RedirectResponse(url="/stats", status_code=301)
+
+
+@app.get("/outcomes_old", response_class=HTMLResponse)
+async def outcomes_old(request: Request):
     async with AsyncSessionLocal() as db:
         u, _ = await require_jwt_user(request, db)
         if not u:
