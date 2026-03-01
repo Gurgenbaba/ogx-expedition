@@ -576,9 +576,38 @@
   document.getElementById("btn-load-fleet").addEventListener("click", loadFleet);
   document.getElementById("btn-clear-fleet").addEventListener("click", clearFleet);
 
-  // Auto-load on page open if saved fleet exists
+  // ── Collector: apply fleet data sent from the userscript ──────────────────
+  // The userscript POSTs to /api/fleet which returns fleet_data.
+  // We listen for a custom event that the userscript can dispatch,
+  // OR we check sessionStorage for fresh fleet data (set by collector via postMessage).
+  function applyCollectorFleet(fleet) {
+    if (!fleet || typeof fleet !== "object") return false;
+    let applied = 0;
+    document.querySelectorAll(".ship-input").forEach(inp => {
+      const v = fleet[inp.dataset.ship];
+      if (v !== undefined) { inp.value = parseInt(v)||0; applied++; }
+    });
+    if (fleet["__slots"]) document.getElementById("inp-slots").value = fleet["__slots"];
+    if (fleet["__max"])   { document.getElementById("inp-max").value = fleet["__max"]; syncAstro(); }
+    return applied > 0;
+  }
+
+  // Check sessionStorage for fresh collector data (set within last 5 minutes)
+  function checkCollectorData() {
+    try {
+      const raw = sessionStorage.getItem("ogx_collector_fleet");
+      if (!raw) return false;
+      const { data, ts } = JSON.parse(raw);
+      if (Date.now() - ts > 5 * 60 * 1000) return false; // older than 5min
+      return applyCollectorFleet(data);
+    } catch { return false; }
+  }
+
+  // Auto-load: prefer collector data if fresh, else localStorage
   checkSavedFleet();
-  loadFleet();
+  if (!checkCollectorData()) {
+    loadFleet();
+  }
 
 })();
 </script>
