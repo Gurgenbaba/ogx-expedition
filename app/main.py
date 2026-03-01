@@ -28,6 +28,14 @@ from .security import (
     create_access_token,
 )
 from .parser import parse_expedition_text
+from .prestige import (
+    handle_expo_import as prestige_expo,
+    handle_smuggler_code as prestige_smuggler,
+    handle_daily_login as prestige_login,
+    get_prestige_summary,
+    get_leaderboard as prestige_leaderboard,
+    seed_achievements,
+)
 from .i18n import get_lang, make_translator, get_translations_js, SUPPORTED, FLAG, LABEL
 from .crypto import encrypt_code, decrypt_code, hash_code
 from .optimizer import optimize_fleet, get_user_stats_summary, OptimizerInput, SHIP_STATS
@@ -127,6 +135,52 @@ def _utcnow() -> datetime:
 # Health
 # ---------------------------------------------------------------------------
 
+@app.get("/prestige", response_class=HTMLResponse)
+async def prestige_page(request: Request):
+    async with AsyncSessionLocal() as db:
+        u, _ = await require_jwt_user(request, db)
+        if not u:
+            return RedirectResponse(url="/login", status_code=303)
+        summary = await get_prestige_summary(db, int(u.id))
+        board = await prestige_leaderboard(db, limit=10)
+        for entry in board:
+            res = await db.execute(select(User).where(User.id == entry["user_id"]))
+            usr = res.scalar_one_or_none()
+            entry["username"] = usr.username if usr else f"user_{entry['user_id']}"
+        return await _template_with_codes(request, "prestige.html", {
+            "user": u,
+            "summary": summary,
+            "leaderboard": board,
+            "active_nav": "prestige",
+        }, db, u)
+
+
+@app.get("/api/prestige")
+async def api_prestige(request: Request):
+    """JSON prestige summary for the current user."""
+    async with AsyncSessionLocal() as db:
+        u, err = await require_jwt_user(request, db)
+        if err:
+            return err
+        summary = await get_prestige_summary(db, int(u.id))
+        return JSONResponse({"ok": True, **summary})
+
+
+@app.get("/api/leaderboard")
+async def api_leaderboard(request: Request):
+    async with AsyncSessionLocal() as db:
+        u, err = await require_jwt_user(request, db)
+        if err:
+            return err
+        board = await prestige_leaderboard(db, limit=20)
+        # Enrich with usernames
+        for entry in board:
+            result = await db.execute(select(User).where(User.id == entry["user_id"]))
+            usr = result.scalar_one_or_none()
+            entry["username"] = usr.username if usr else f"user_{entry['user_id']}"
+        return JSONResponse({"ok": True, "leaderboard": board})
+
+
 @app.get("/healthz")
 async def healthz():
     return {"ok": True}
@@ -146,6 +200,13 @@ async def auth_login(payload: dict = Body(...)):
             return JSONResponse({"ok": False, "error": "invalid_login"}, status_code=401)
         u.last_login_at = _utcnow()
         await db.commit()
+        # Award daily login OP
+        try:
+            async with AsyncSessionLocal() as prestige_db:
+                await prestige_login(prestige_db, int(u.id), "expedition")
+                await prestige_db.commit()
+        except Exception:
+            pass  # never block login on prestige errors
         token = create_access_token(user=u)
         return {"ok": True, "token": token, "username": u.username, "is_admin": u.is_admin}
 
@@ -330,6 +391,12 @@ async def do_import(request: Request, raw_text: str = Form(...)):
         db.add(imp)
         await db.commit()
 
+    # Award OP for new expedition imports
+    if count_new > 0:
+        async with AsyncSessionLocal() as prestige_db:
+            await prestige_expo(prestige_db, uid, count_new)
+            await prestige_db.commit()
+
     return RedirectResponse(
         url=f"/import?imported={count_new}&duplicates={count_dup}&failed={count_fail}",
         status_code=303,
@@ -436,12 +503,20 @@ async def api_import(request: Request, payload: dict = Body(...)):
         db.add(imp)
         await db.commit()
 
+    # Award OP for new expedition imports
+    prestige_result = {}
+    if count_new > 0:
+        async with AsyncSessionLocal() as prestige_db:
+            prestige_result = await prestige_expo(prestige_db, uid, count_new)
+            await prestige_db.commit()
+
     return JSONResponse({
         "ok": True,
         "count_new": count_new,
         "count_duplicate": count_dup,
         "count_failed": count_fail,
         "count_parsed": len(parsed),
+        "prestige": prestige_result,
     })
 
 

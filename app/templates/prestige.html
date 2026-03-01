@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+{% block title %}Prestige — OGX Expedition{% endblock %}
+
+{% block content %}
+<style>
+/* ── Prestige page ─────────────────────────────────────── */
+.prestige-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; max-width:960px; margin:0 auto; }
+@media(max-width:680px){ .prestige-grid { grid-template-columns:1fr; } }
+
+.pcard {
+  background:#111c30;
+  border:1px solid #1e3256;
+  border-radius:10px;
+  padding:20px 22px;
+}
+.pcard h3 {
+  margin:0 0 16px;
+  font-size:13px;
+  letter-spacing:.6px;
+  text-transform:uppercase;
+  color:#60a5fa;
+  opacity:.8;
+}
+
+/* Rank hero */
+.rank-hero {
+  grid-column: 1 / -1;
+  display:flex; align-items:center; gap:22px;
+  padding:24px 28px;
+  background: linear-gradient(135deg, #0f1f3d 0%, #111c30 60%, #0a1628 100%);
+  border:1px solid #1e3256;
+  border-radius:12px;
+}
+.rank-icon { font-size:52px; line-height:1; flex-shrink:0; }
+.rank-info { flex:1; min-width:0; }
+.rank-name { font-size:26px; font-weight:700; color:#e2e8f0; line-height:1.1; }
+.rank-op   { font-size:14px; color:#60a5fa; margin-top:4px; }
+.rank-sub  { font-size:12px; color:#64748b; margin-top:2px; }
+
+/* Progress bar */
+.prog-wrap { margin-top:14px; }
+.prog-label { display:flex; justify-content:space-between; font-size:11px; color:#64748b; margin-bottom:5px; }
+.prog-bar { height:8px; background:#1e3256; border-radius:4px; overflow:hidden; }
+.prog-fill { height:100%; border-radius:4px;
+  background: linear-gradient(90deg, #3b82f6, #60a5fa);
+  transition: width .6s ease; }
+
+/* Stats row */
+.stats-row { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+.stat-box { background:#0d1829; border:1px solid #1a2e50; border-radius:8px; padding:12px; text-align:center; }
+.stat-val { font-size:22px; font-weight:700; color:#e2e8f0; }
+.stat-lbl { font-size:10px; color:#64748b; text-transform:uppercase; letter-spacing:.5px; margin-top:3px; }
+
+/* Streak */
+.streak-box { display:flex; align-items:center; gap:16px; }
+.streak-fire { font-size:36px; }
+.streak-num  { font-size:36px; font-weight:800; color:#f59e0b; }
+.streak-lbl  { font-size:11px; color:#64748b; }
+
+/* Achievements */
+.ach-list { display:flex; flex-direction:column; gap:8px; }
+.ach-item {
+  display:flex; align-items:center; gap:12px;
+  padding:10px 12px;
+  border-radius:8px;
+  font-size:12px;
+}
+.ach-item.unlocked { background:#0f2a1a; border:1px solid #166534; }
+.ach-item.locked   { background:#0d1829; border:1px solid #1a2e50; opacity:.6; }
+.ach-icon { font-size:20px; flex-shrink:0; width:28px; text-align:center; }
+.ach-name { font-weight:600; color:#e2e8f0; }
+.ach-desc { color:#64748b; font-size:11px; }
+.ach-op   { margin-left:auto; color:#f59e0b; font-weight:600; font-size:11px; white-space:nowrap; }
+
+/* Leaderboard */
+.lb-table { width:100%; border-collapse:collapse; font-size:12px; }
+.lb-table th { text-align:left; color:#64748b; font-weight:600; padding:6px 8px; border-bottom:1px solid #1a2e50; font-size:10px; text-transform:uppercase; letter-spacing:.5px; }
+.lb-table td { padding:8px 8px; border-bottom:1px solid #111c30; }
+.lb-table tr:hover td { background:#0f1f3d; }
+.lb-rank { color:#64748b; width:30px; }
+.lb-rank.top1 { color:#f59e0b; font-weight:700; }
+.lb-rank.top2 { color:#94a3b8; font-weight:700; }
+.lb-rank.top3 { color:#cd7c3a; font-weight:700; }
+.lb-user { color:#e2e8f0; font-weight:600; }
+.lb-badge { font-size:10px; padding:2px 6px; border-radius:4px; background:#1e3256; color:#60a5fa; }
+.lb-op { color:#60a5fa; font-weight:700; text-align:right; }
+
+/* Scanner title badge */
+.scanner-badge {
+  display:inline-block;
+  font-size:11px; padding:3px 10px; border-radius:12px;
+  background:#1a2e50; color:#60a5fa;
+  border:1px solid #1e3256;
+  margin-top:6px;
+}
+</style>
+
+<div style="max-width:960px;margin:0 auto;padding:0 0 40px;">
+
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+    <h1 style="margin:0;font-size:20px;color:#e2e8f0;">🏆 Prestige</h1>
+    <a href="/" style="font-size:12px;color:#60a5fa;text-decoration:none;opacity:.7">← Dashboard</a>
+  </div>
+
+  <div class="prestige-grid">
+
+    <!-- ── Rank hero ── -->
+    <div class="rank-hero">
+      <div class="rank-icon">
+        {% if summary.prestige_rank == "Grand Oracle" %}👑
+        {% elif summary.prestige_rank == "High Oracle" %}🔮
+        {% elif summary.prestige_rank == "Strategist" %}🧠
+        {% elif summary.prestige_rank == "Commander" %}⚔️
+        {% elif summary.prestige_rank == "Analyst" %}📊
+        {% else %}🪐{% endif %}
+      </div>
+      <div class="rank-info">
+        <div class="rank-name">{{ summary.prestige_rank }}</div>
+        <div class="rank-op">{{ "{:,}".format(summary.total_op) }} Oracle Points</div>
+        {% if summary.scanner_title %}
+          <div class="scanner-badge">{{ summary.scanner_title }}</div>
+        {% endif %}
+        {% if summary.next_rank %}
+          <div class="prog-wrap">
+            <div class="prog-label">
+              <span>→ {{ summary.next_rank.name }}</span>
+              <span>{{ "{:,}".format(summary.next_rank.op_needed) }} OP needed</span>
+            </div>
+            <div class="prog-bar">
+              <div class="prog-fill" style="width:{{ summary.progress_pct }}%"></div>
+            </div>
+          </div>
+        {% else %}
+          <div style="margin-top:10px;font-size:11px;color:#f59e0b;">✨ Maximum rank reached</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- ── Stats ── -->
+    <div class="pcard">
+      <h3>Activity</h3>
+      <div class="stats-row">
+        <div class="stat-box">
+          <div class="stat-val">{{ "{:,}".format(summary.expo_count) }}</div>
+          <div class="stat-lbl">Expeditions</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val">{{ "{:,}".format(summary.scan_count) }}</div>
+          <div class="stat-lbl">Systems Scanned</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val">{{ summary.smuggler_count }}</div>
+          <div class="stat-lbl">Smuggler Codes</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Streak ── -->
+    <div class="pcard">
+      <h3>Activity Streak</h3>
+      <div class="streak-box">
+        <div class="streak-fire">🔥</div>
+        <div>
+          <div class="streak-num">{{ summary.current_streak }}</div>
+          <div class="streak-lbl">Current streak (days)</div>
+          <div style="margin-top:6px;font-size:11px;color:#64748b;">Best: {{ summary.longest_streak }} days</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Achievements ── -->
+    <div class="pcard" style="grid-column:1/-1;">
+      <h3>Achievements</h3>
+
+      {% if summary.achievements_unlocked %}
+        <div style="margin-bottom:12px;font-size:11px;color:#64748b;">
+          {{ summary.achievements_unlocked | length }} unlocked
+        </div>
+        <div class="ach-list" style="margin-bottom:20px;">
+          {% for a in summary.achievements_unlocked %}
+          <div class="ach-item unlocked">
+            <div class="ach-icon">{{ a.icon }}</div>
+            <div>
+              <div class="ach-name">{{ a.name }}</div>
+              <div class="ach-desc">{{ a.description }}</div>
+            </div>
+            <div class="ach-op">✓ Unlocked</div>
+          </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      {% if summary.achievements_locked %}
+        <div style="margin-bottom:10px;font-size:11px;color:#64748b;">Next to unlock</div>
+        <div class="ach-list">
+          {% for a in summary.achievements_locked %}
+          <div class="ach-item locked">
+            <div class="ach-icon">{{ a.icon }}</div>
+            <div>
+              <div class="ach-name">{{ a.name }}</div>
+              <div class="ach-desc">{{ a.description }}</div>
+            </div>
+            {% if a.op_reward > 0 %}
+              <div class="ach-op">+{{ a.op_reward }} OP</div>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- ── Leaderboard ── -->
+    <div class="pcard" style="grid-column:1/-1;">
+      <h3>Leaderboard — All Time</h3>
+      <table class="lb-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Player</th>
+            <th>Rank</th>
+            <th style="text-align:right">Oracle Points</th>
+            <th style="text-align:right">Expeditions</th>
+            <th style="text-align:right">Systems</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for entry in leaderboard %}
+          <tr>
+            <td class="lb-rank {% if entry.rank == 1 %}top1{% elif entry.rank == 2 %}top2{% elif entry.rank == 3 %}top3{% endif %}">
+              {% if entry.rank == 1 %}🥇{% elif entry.rank == 2 %}🥈{% elif entry.rank == 3 %}🥉{% else %}{{ entry.rank }}{% endif %}
+            </td>
+            <td class="lb-user">
+              {{ entry.username }}
+              {% if entry.user_id == user.id %}
+                <span style="font-size:10px;color:#60a5fa;margin-left:4px;">(you)</span>
+              {% endif %}
+            </td>
+            <td><span class="lb-badge">{{ entry.prestige_rank }}</span></td>
+            <td class="lb-op">{{ "{:,}".format(entry.total_op) }}</td>
+            <td style="text-align:right;color:#94a3b8;">{{ "{:,}".format(entry.expo_count) }}</td>
+            <td style="text-align:right;color:#94a3b8;">{{ "{:,}".format(entry.scan_count) }}</td>
+          </tr>
+          {% endfor %}
+          {% if not leaderboard %}
+          <tr><td colspan="6" style="text-align:center;color:#64748b;padding:20px;">No data yet</td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+
+  </div><!-- /prestige-grid -->
+</div>
+{% endblock %}

@@ -4,7 +4,8 @@ from datetime import datetime
 from typing import Optional
 from sqlalchemy import (
     String, Integer, BigInteger, Boolean, DateTime,
-    Float, Text, Index, text, JSON
+    Float, Text, Index, text, JSON,
+    UniqueConstraint, CheckConstraint
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -153,3 +154,101 @@ class SmugglerCode(Base):
         # one code per user (same code can't be found twice)
         Index("ix_smuggler_user_code", "user_id", "code_hash", unique=True),
     )
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# PRESTIGE SYSTEM — shared with OGX Oracle
+# ═══════════════════════════════════════════════════════════════════════════
+
+class OPTransaction(Base):
+    """Immutable audit log of every Oracle Points change."""
+    __tablename__ = "op_transactions"
+
+    id:         Mapped[int]           = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id:    Mapped[int]           = mapped_column(Integer, nullable=False, index=True)
+    amount:     Mapped[int]           = mapped_column(Integer, nullable=False)
+    reason:     Mapped[str]           = mapped_column(String(64), nullable=False, index=True)
+    source_app: Mapped[str]           = mapped_column(String(16), nullable=False)
+    ref_id:     Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime]      = mapped_column(DateTime, nullable=False, default=_now, server_default=SERVER_NOW)
+
+    __table_args__ = (
+        CheckConstraint("amount != 0", name="ck_op_amount_nonzero"),
+        Index("ix_op_user_created", "user_id", "created_at"),
+        Index("ix_op_reason", "reason"),
+    )
+
+
+class UserPrestige(Base):
+    """Denormalized prestige summary per user. Updated on each OP award."""
+    __tablename__ = "user_prestige"
+
+    user_id:            Mapped[int]            = mapped_column(Integer, primary_key=True)
+    total_op:           Mapped[int]            = mapped_column(Integer, nullable=False, default=0, server_default=text("0"))
+    prestige_rank:      Mapped[str]            = mapped_column(String(24), nullable=False, default="Cadet", server_default=text("'Cadet'"))
+    scanner_title:      Mapped[Optional[str]]  = mapped_column(String(32), nullable=True)
+    expo_count:         Mapped[int]            = mapped_column(Integer, nullable=False, default=0, server_default=text("0"))
+    scan_count:         Mapped[int]            = mapped_column(Integer, nullable=False, default=0, server_default=text("0"))
+    smuggler_count:     Mapped[int]            = mapped_column(Integer, nullable=False, default=0, server_default=text("0"))
+    last_active_date:   Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    current_streak:     Mapped[int]            = mapped_column(Integer, nullable=False, default=0, server_default=text("0"))
+    longest_streak:     Mapped[int]            = mapped_column(Integer, nullable=False, default=0, server_default=text("0"))
+    streak_milestone_7_claimed:  Mapped[bool]  = mapped_column(Boolean, nullable=False, default=False, server_default=text("false"))
+    streak_milestone_30_claimed: Mapped[bool]  = mapped_column(Boolean, nullable=False, default=False, server_default=text("false"))
+    updated_at:         Mapped[datetime]       = mapped_column(DateTime, nullable=False, default=_now, server_default=SERVER_NOW)
+
+    __table_args__ = (
+        CheckConstraint("total_op >= 0", name="ck_prestige_op_nonneg"),
+        CheckConstraint("current_streak >= 0", name="ck_prestige_streak_nonneg"),
+        Index("ix_prestige_total_op", "total_op"),
+        Index("ix_prestige_rank", "prestige_rank"),
+        {"extend_existing": True},
+    )
+
+
+class Achievement(Base):
+    __tablename__ = "achievements"
+
+    id:          Mapped[int]  = mapped_column(Integer, primary_key=True, autoincrement=True)
+    slug:        Mapped[str]  = mapped_column(String(64), unique=True, nullable=False)
+    category:    Mapped[str]  = mapped_column(String(32), nullable=False, index=True)
+    name:        Mapped[str]  = mapped_column(String(64), nullable=False)
+    description: Mapped[str]  = mapped_column(String(255), nullable=False)
+    icon:        Mapped[str]  = mapped_column(String(16), nullable=False)
+    op_reward:   Mapped[int]  = mapped_column(Integer, nullable=False, default=0)
+    threshold:   Mapped[int]  = mapped_column(Integer, nullable=False, default=0)
+    hidden:      Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=text("false"))
+
+    __table_args__ = {"extend_existing": True}
+
+
+class UserAchievement(Base):
+    __tablename__ = "user_achievements"
+
+    id:             Mapped[int]      = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id:        Mapped[int]      = mapped_column(Integer, nullable=False, index=True)
+    achievement_id: Mapped[int]      = mapped_column(Integer, nullable=False, index=True)
+    unlocked_at:    Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_now, server_default=SERVER_NOW)
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "achievement_id", name="uq_user_achievement"),
+        Index("ix_ua_user", "user_id"),
+    )
+
+
+class LeaderboardSnapshot(Base):
+    __tablename__ = "leaderboard_snapshots"
+
+    id:         Mapped[int]      = mapped_column(Integer, primary_key=True, autoincrement=True)
+    period:     Mapped[str]      = mapped_column(String(16), nullable=False)
+    period_key: Mapped[str]      = mapped_column(String(16), nullable=False)
+    user_id:    Mapped[int]      = mapped_column(Integer, nullable=False)
+    rank:       Mapped[int]      = mapped_column(Integer, nullable=False)
+    op_earned:  Mapped[int]      = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_now, server_default=SERVER_NOW)
+
+    __table_args__ = (
+        UniqueConstraint("period", "period_key", "user_id", name="uq_snapshot_period_user"),
+        Index("ix_snapshot_period", "period", "period_key"),
+    )
+

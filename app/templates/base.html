@@ -25,6 +25,7 @@
         <a href="/codes" class="{% if active_nav == 'codes' %}active{% endif %}">
           {{ t('nav.codes') }}{% if pending_codes_count is defined and pending_codes_count > 0 %}<span class="badge-count">{{ pending_codes_count }}</span>{% endif %}
         </a>
+        <a href="/prestige" class="{% if active_nav == 'prestige' %}active{% endif %}">🏆 Prestige</a>
         <a href="https://ogx-oraclev2-production.up.railway.app" target="_blank" class="muted">{{ t('nav.oracle') }}</a>
       </nav>
       <div style="display:flex;align-items:center;gap:8px">
