@@ -273,5 +273,6 @@
   "dash.pirate_sig": "Signature ennemie",
   "dash.pirate_win": "Chance de victoire",
   "dash.pirate_loss": "Pertes de flotte",
-  "login.tagline": "Analytique de flotte"
+  "login.tagline": "Analytique de flotte",
+  "prestige.loading": "Chargement…"
 }

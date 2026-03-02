@@ -273,5 +273,6 @@
   "dash.pirate_sig": "Enemy Signature",
   "dash.pirate_win": "Win Chance",
   "dash.pirate_loss": "Fleet Loss",
-  "login.tagline": "Fleet Analytics"
+  "login.tagline": "Fleet Analytics",
+  "prestige.loading": "Loading…"
 }
