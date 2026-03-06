@@ -33,6 +33,10 @@ class Settings(BaseSettings):
     # Set EXP_ORACLE_DB_URL if expedition DB != oracle DB (optional)
     oracle_database_url: Optional[str] = Field(default=None, repr=False)
 
+    # Bridge (Glad's server)
+    glad_bridge_url: str = Field(default="https://playogx.com/bridge.php")
+    glad_bridge_secret: str = Field(default="")
+
     allow_registration: bool = Field(default=False)  # registration handled by ogx-oraclev2
     max_paste_bytes: int = Field(default=500_000)
     max_expeditions_per_import: int = Field(default=500)

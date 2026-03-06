@@ -1,8 +1,13 @@
 # app/main.py
 from __future__ import annotations
 
+import asyncio
 import csv
+import hashlib
 import io
+import json
+import urllib.parse
+import urllib.request
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -982,6 +987,163 @@ async def delete_code(code_id: int, request: Request):
         await db.delete(sc)
         await db.commit()
         return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+# Bridge sync
+# ---------------------------------------------------------------------------
+
+BRIDGE_OUTCOME_MAP = {
+    "resources":   "success_res",
+    "ships":       "success_ships",
+    "dark_matter": "success_dm",
+    "nothing":     "failed",
+    "pirates":     "pirates_win",
+    "aliens":      "pirates_win",
+    "lost":        "vanished",
+}
+
+
+def _bridge_request(action: str, params: dict) -> dict:
+    """Synchronous Bridge call — run via asyncio.to_thread."""
+    qs = urllib.parse.urlencode({
+        "action": action,
+        "secret": settings.glad_bridge_secret,
+        **params,
+    })
+    url = f"{settings.glad_bridge_url}?{qs}"
+    req = urllib.request.Request(url, headers={"User-Agent": "OGX-Expedition/1.0"})
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+@app.post("/api/bridge/sync")
+async def bridge_sync(request: Request):
+    """
+    Pull expedition data from Glad's Bridge and insert into the expeditions table.
+    Requires the user to have a verified linked account (linked_accounts row).
+    Returns {ok, inserted, skipped, error?}.
+    """
+    async with AsyncSessionLocal() as db:
+        user, err = await require_jwt_user(request, db)
+        if err:
+            return err
+
+        linked_row = (await db.execute(
+            text("""
+                SELECT la.game_player_id, la.server_id, lc.code
+                FROM linked_accounts la
+                LEFT JOIN link_codes lc ON lc.user_id = la.user_id
+                WHERE la.user_id = :uid
+                LIMIT 1
+            """),
+            {"uid": user.id}
+        )).fetchone()
+
+        if not linked_row:
+            return JSONResponse({"ok": False, "error": "no_linked_account"}, status_code=400)
+
+        link_code = linked_row[2] if linked_row[2] else None
+        server_id = linked_row[1] if linked_row[1] else None
+
+        if not link_code:
+            return JSONResponse({"ok": False, "error": "no_link_code"}, status_code=400)
+
+        try:
+            params: dict = {"code": link_code}
+            if server_id:
+                params["server_id"] = server_id
+            data = await asyncio.to_thread(_bridge_request, "expo", params)
+        except Exception as exc:
+            return JSONResponse({"ok": False, "error": "bridge_unreachable", "detail": str(exc)}, status_code=502)
+
+        if not data.get("ok"):
+            return JSONResponse({"ok": False, "error": data.get("error", "bridge_error")}, status_code=502)
+
+        expeditions_raw = data.get("expeditions") or []
+        inserted = 0
+        skipped = 0
+
+        for item in expeditions_raw:
+            outcome_type = BRIDGE_OUTCOME_MAP.get(item.get("result_type", "nothing"), "failed")
+
+            try:
+                returned_at = datetime.fromisoformat(
+                    item["date"].replace("Z", "+00:00")
+                ).replace(tzinfo=None)
+            except Exception:
+                returned_at = _utcnow()
+
+            metal       = int(item.get("metal", 0))
+            crystal     = int(item.get("crystal", 0))
+            deuterium   = int(item.get("deuterium", 0))
+            dark_matter = int(item.get("dark_matter", 0))
+            ships_raw   = item.get("ships_found")
+            ships_delta = ships_raw if isinstance(ships_raw, dict) else None
+
+            raw_key  = f"{user.id}|{returned_at.isoformat()}|{outcome_type}"
+            dedup_key = "bridge_" + hashlib.sha256(raw_key.encode()).hexdigest()[:48]
+
+            stmt = pg_insert(Expedition).values(
+                user_id     = user.id,
+                returned_at = returned_at,
+                imported_at = _utcnow(),
+                outcome_type= outcome_type,
+                metal       = metal,
+                crystal     = crystal,
+                deuterium   = deuterium,
+                dark_matter = dark_matter,
+                ships_delta = ships_delta,
+                dedup_key   = dedup_key,
+            ).on_conflict_do_nothing(index_elements=["dedup_key"])
+
+            result = await db.execute(stmt)
+            if result.rowcount:
+                inserted += 1
+                try:
+                    fake_parsed = type("P", (), {
+                        "outcome_type": outcome_type,
+                        "metal": metal, "crystal": crystal,
+                        "deuterium": deuterium, "dark_matter": dark_matter,
+                        "dark_matter_bonus": 0, "dark_matter_bonus_pct": 0,
+                        "ships_delta": ships_delta, "fleet_sent": None,
+                        "loss_percent": None, "pirate_strength": None,
+                        "pirate_win_chance": None, "pirate_loss_rate": None,
+                        "exp_number": None, "raw_text": None, "dedup_key": dedup_key,
+                    })()
+                    await prestige_expo(db, user.id, fake_parsed)
+                except Exception:
+                    pass
+            else:
+                skipped += 1
+
+        await db.commit()
+        return {"ok": True, "inserted": inserted, "skipped": skipped}
+
+
+@app.get("/api/bridge/status")
+async def bridge_status(request: Request):
+    """Returns whether the current user has a linked account."""
+    async with AsyncSessionLocal() as db:
+        user, err = await require_jwt_user(request, db)
+        if err:
+            return err
+
+        linked_row = (await db.execute(
+            text("SELECT game_player_id, server_id FROM linked_accounts WHERE user_id = :uid LIMIT 1"),
+            {"uid": user.id}
+        )).fetchone()
+
+        if not linked_row:
+            return {"ok": True, "linked": False}
+
+        return {
+            "ok": True,
+            "linked": True,
+            "game_player_id": linked_row[0],
+            "server_id": linked_row[1],
+        }
+
 
 @app.get("/lang/{code}")
 async def set_lang(code: str, request: Request):
