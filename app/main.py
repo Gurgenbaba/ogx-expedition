@@ -1031,7 +1031,7 @@ async def bridge_sync(request: Request):
 
         linked_row = (await db.execute(
             text("""
-                SELECT la.game_player_id, lc.code
+                SELECT la.game_player_id, COALESCE(la.server_id, 'beta') as server_id, lc.code
                 FROM linked_accounts la
                 LEFT JOIN link_codes lc ON lc.user_id = la.user_id
                 WHERE la.user_id = :uid
@@ -1043,8 +1043,8 @@ async def bridge_sync(request: Request):
         if not linked_row:
             return JSONResponse({"ok": False, "error": "no_linked_account"}, status_code=400)
 
-        link_code = linked_row[1] if linked_row[1] else None
-        server_id = None  # not stored in DB, bridge auto-detects
+        link_code = linked_row[2] if linked_row[2] else None
+        server_id = linked_row[1] or "beta"
 
         if not link_code:
             return JSONResponse({"ok": False, "error": "no_link_code"}, status_code=400)
@@ -1130,7 +1130,7 @@ async def bridge_status(request: Request):
             return err
 
         linked_row = (await db.execute(
-            text("SELECT game_player_id FROM linked_accounts WHERE user_id = :uid LIMIT 1"),
+            text("SELECT game_player_id, COALESCE(server_id, 'beta') as server_id FROM linked_accounts WHERE user_id = :uid LIMIT 1"),
             {"uid": user.id}
         )).fetchone()
 
@@ -1141,6 +1141,7 @@ async def bridge_status(request: Request):
             "ok": True,
             "linked": True,
             "game_player_id": linked_row[0],
+            "server_id": linked_row[1],
         }
 
 
