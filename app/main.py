@@ -251,9 +251,15 @@ async def dashboard(request: Request):
         if not u:
             return _template(request, "login.html", {"active_nav": "dashboard"})
 
-        exps = (await db.execute(
-            select(Expedition).where(Expedition.user_id == u.id).order_by(Expedition.returned_at.desc())
-        )).scalars().all()
+        # Server filter from query param
+        server_filter = request.query_params.get("server") or None
+
+        # Fetch all expeditions for this user
+        q = select(Expedition).where(Expedition.user_id == u.id)
+        if server_filter:
+            q = q.where(Expedition.server_id == server_filter)
+        q = q.order_by(Expedition.returned_at.desc())
+        exps = (await db.execute(q)).scalars().all()
 
         stats = get_user_stats_summary(list(exps))
 
@@ -262,8 +268,21 @@ async def dashboard(request: Request):
         for e in exps:
             outcome_counts[e.outcome_type] = outcome_counts.get(e.outcome_type, 0) + 1
 
-        # Resources over time (last 50)
-        recent = exps[:50]  # all types, newest first
+        # All distinct server_ids this user has data for
+        server_rows = (await db.execute(
+            text("SELECT DISTINCT server_id FROM expeditions WHERE user_id = :uid AND server_id IS NOT NULL ORDER BY server_id"),
+            {"uid": u.id}
+        )).fetchall()
+        servers = [r[0] for r in server_rows]
+
+        # Check if user has a link code (for bridge sync button)
+        link_row = (await db.execute(
+            text("SELECT code FROM link_codes WHERE user_id = :uid ORDER BY id DESC LIMIT 1"),
+            {"uid": u.id}
+        )).fetchone()
+        has_link_code = bool(link_row and link_row[0])
+
+        recent = exps[:50]
 
         return await _template_with_codes(request, "dashboard.html", {
             "user": u,
@@ -272,6 +291,9 @@ async def dashboard(request: Request):
             "recent": recent,
             "total": len(exps),
             "active_nav": "dashboard",
+            "servers": servers,
+            "server_filter": server_filter,
+            "has_link_code": has_link_code,
         }, db, u)
 
 
@@ -1003,6 +1025,9 @@ BRIDGE_OUTCOME_MAP = {
     "lost":        "vanished",
 }
 
+# Bridge supports these server IDs
+KNOWN_SERVERS = ["beta", "uni1"]
+
 
 def _bridge_request(action: str, params: dict) -> dict:
     """Synchronous Bridge call — run via asyncio.to_thread."""
@@ -1013,135 +1038,180 @@ def _bridge_request(action: str, params: dict) -> dict:
     })
     url = f"{settings.glad_bridge_url}?{qs}"
     req = urllib.request.Request(url, headers={"User-Agent": "OGX-Expedition/1.0"})
-    with urllib.request.urlopen(req, timeout=10) as resp:
+    with urllib.request.urlopen(req, timeout=15) as resp:
         return json.loads(resp.read().decode("utf-8"))
+
+
+async def _sync_server(db, user_id: int, link_code: str, server_id: str) -> dict:
+    """
+    Fetch expedition data from bridge for one server and insert into DB.
+    Returns {"inserted": int, "skipped": int, "error": str|None}.
+    """
+    try:
+        data = await asyncio.to_thread(
+            _bridge_request, "expo",
+            {"code": link_code, "server_id": server_id, "limit": 5000}
+        )
+    except Exception as exc:
+        return {"inserted": 0, "skipped": 0, "error": f"bridge_unreachable: {exc}"}
+
+    if not data.get("ok"):
+        err = data.get("error", "bridge_error")
+        # code_not_found on a server just means user has no account there — not fatal
+        if err in ("code_not_found", "no_account"):
+            return {"inserted": 0, "skipped": 0, "error": None}
+        return {"inserted": 0, "skipped": 0, "error": err}
+
+    expeditions_raw = data.get("expeditions") or []
+    inserted = 0
+    skipped = 0
+
+    for item in expeditions_raw:
+        outcome_type = BRIDGE_OUTCOME_MAP.get(item.get("result_type", "nothing"), "failed")
+
+        try:
+            returned_at = datetime.fromisoformat(
+                item["date"].replace("Z", "+00:00")
+            ).replace(tzinfo=None)
+        except Exception:
+            returned_at = _utcnow()
+
+        metal       = int(item.get("metal", 0))
+        crystal     = int(item.get("crystal", 0))
+        deuterium   = int(item.get("deuterium", 0))
+        dark_matter = int(item.get("dark_matter", 0))
+        ships_raw   = item.get("ships_found")
+        ships_delta = ships_raw if isinstance(ships_raw, dict) else None
+
+        # dedup_key includes server_id so same expo on different universes is unique
+        raw_key   = f"{user_id}|{server_id}|{returned_at.isoformat()}|{outcome_type}"
+        dedup_key = "bridge_" + hashlib.sha256(raw_key.encode()).hexdigest()[:48]
+
+        stmt = pg_insert(Expedition).values(
+            user_id     = user_id,
+            server_id   = server_id,
+            returned_at = returned_at,
+            imported_at = _utcnow(),
+            outcome_type= outcome_type,
+            metal       = metal,
+            crystal     = crystal,
+            deuterium   = deuterium,
+            dark_matter = dark_matter,
+            ships_delta = ships_delta,
+            dedup_key   = dedup_key,
+        ).on_conflict_do_nothing(index_elements=["dedup_key"])
+
+        result = await db.execute(stmt)
+        if result.rowcount:
+            inserted += 1
+            try:
+                fake_parsed = type("P", (), {
+                    "outcome_type": outcome_type,
+                    "metal": metal, "crystal": crystal,
+                    "deuterium": deuterium, "dark_matter": dark_matter,
+                    "dark_matter_bonus": 0, "dark_matter_bonus_pct": 0,
+                    "ships_delta": ships_delta, "fleet_sent": None,
+                    "loss_percent": None, "pirate_strength": None,
+                    "pirate_win_chance": None, "pirate_loss_rate": None,
+                    "exp_number": None, "raw_text": None, "dedup_key": dedup_key,
+                })()
+                await prestige_expo(db, user_id, fake_parsed)
+            except Exception:
+                pass
+        else:
+            skipped += 1
+
+    return {"inserted": inserted, "skipped": skipped, "error": None}
 
 
 @app.post("/api/bridge/sync")
 async def bridge_sync(request: Request):
     """
-    Pull expedition data from Glad's Bridge and insert into the expeditions table.
-    Requires the user to have a verified linked account (linked_accounts row).
-    Returns {ok, inserted, skipped, error?}.
+    Pull expedition data from Glad's Bridge for ALL servers and insert.
+    Uses link_codes.code directly — does not require linked_accounts row.
+    Returns {ok, inserted, skipped, servers: [{server_id, inserted, skipped, error}]}.
     """
     async with AsyncSessionLocal() as db:
         user, err = await require_jwt_user(request, db)
         if err:
             return err
 
-        linked_row = (await db.execute(
-            text("""
-                SELECT la.game_player_id, COALESCE(la.server_id, 'beta') as server_id, lc.code
-                FROM linked_accounts la
-                LEFT JOIN link_codes lc ON lc.user_id = la.user_id
-                WHERE la.user_id = :uid
-                LIMIT 1
-            """),
+        # Use the most recent link code for this user
+        link_row = (await db.execute(
+            text("SELECT code FROM link_codes WHERE user_id = :uid ORDER BY id DESC LIMIT 1"),
             {"uid": user.id}
         )).fetchone()
 
-        if not linked_row:
-            return JSONResponse({"ok": False, "error": "no_linked_account"}, status_code=400)
-
-        link_code = linked_row[2] if linked_row[2] else None
-        server_id = linked_row[1] or "beta"
-
-        if not link_code:
+        if not link_row or not link_row[0]:
             return JSONResponse({"ok": False, "error": "no_link_code"}, status_code=400)
 
+        link_code = link_row[0]
+
+        # Optionally sync only a specific server (from request body)
+        body: dict = {}
         try:
-            params: dict = {"code": link_code}
-            if server_id:
-                params["server_id"] = server_id
-            data = await asyncio.to_thread(_bridge_request, "expo", params)
-        except Exception as exc:
-            return JSONResponse({"ok": False, "error": "bridge_unreachable", "detail": str(exc)}, status_code=502)
+            body = await request.json()
+        except Exception:
+            pass
+        target_server = body.get("server_id") if body else None
 
-        if not data.get("ok"):
-            return JSONResponse({"ok": False, "error": data.get("error", "bridge_error")}, status_code=502)
+        servers_to_sync = [target_server] if target_server else KNOWN_SERVERS
 
-        expeditions_raw = data.get("expeditions") or []
-        inserted = 0
-        skipped = 0
+        total_inserted = 0
+        total_skipped  = 0
+        server_results = []
 
-        for item in expeditions_raw:
-            outcome_type = BRIDGE_OUTCOME_MAP.get(item.get("result_type", "nothing"), "failed")
-
-            try:
-                returned_at = datetime.fromisoformat(
-                    item["date"].replace("Z", "+00:00")
-                ).replace(tzinfo=None)
-            except Exception:
-                returned_at = _utcnow()
-
-            metal       = int(item.get("metal", 0))
-            crystal     = int(item.get("crystal", 0))
-            deuterium   = int(item.get("deuterium", 0))
-            dark_matter = int(item.get("dark_matter", 0))
-            ships_raw   = item.get("ships_found")
-            ships_delta = ships_raw if isinstance(ships_raw, dict) else None
-
-            raw_key  = f"{user.id}|{returned_at.isoformat()}|{outcome_type}"
-            dedup_key = "bridge_" + hashlib.sha256(raw_key.encode()).hexdigest()[:48]
-
-            stmt = pg_insert(Expedition).values(
-                user_id     = user.id,
-                returned_at = returned_at,
-                imported_at = _utcnow(),
-                outcome_type= outcome_type,
-                metal       = metal,
-                crystal     = crystal,
-                deuterium   = deuterium,
-                dark_matter = dark_matter,
-                ships_delta = ships_delta,
-                dedup_key   = dedup_key,
-            ).on_conflict_do_nothing(index_elements=["dedup_key"])
-
-            result = await db.execute(stmt)
-            if result.rowcount:
-                inserted += 1
-                try:
-                    fake_parsed = type("P", (), {
-                        "outcome_type": outcome_type,
-                        "metal": metal, "crystal": crystal,
-                        "deuterium": deuterium, "dark_matter": dark_matter,
-                        "dark_matter_bonus": 0, "dark_matter_bonus_pct": 0,
-                        "ships_delta": ships_delta, "fleet_sent": None,
-                        "loss_percent": None, "pirate_strength": None,
-                        "pirate_win_chance": None, "pirate_loss_rate": None,
-                        "exp_number": None, "raw_text": None, "dedup_key": dedup_key,
-                    })()
-                    await prestige_expo(db, user.id, fake_parsed)
-                except Exception:
-                    pass
-            else:
-                skipped += 1
+        for srv in servers_to_sync:
+            res = await _sync_server(db, int(user.id), link_code, srv)
+            server_results.append({"server_id": srv, **res})
+            total_inserted += res["inserted"]
+            total_skipped  += res["skipped"]
 
         await db.commit()
-        return {"ok": True, "inserted": inserted, "skipped": skipped}
+        return {
+            "ok": True,
+            "inserted": total_inserted,
+            "skipped":  total_skipped,
+            "servers":  server_results,
+        }
 
 
 @app.get("/api/bridge/status")
 async def bridge_status(request: Request):
-    """Returns whether the current user has a linked account."""
+    """
+    Returns link code status and which servers have expedition data.
+    Does not require linked_accounts — only link_codes.
+    """
     async with AsyncSessionLocal() as db:
         user, err = await require_jwt_user(request, db)
         if err:
             return err
 
-        linked_row = (await db.execute(
-            text("SELECT game_player_id, COALESCE(server_id, 'beta') as server_id FROM linked_accounts WHERE user_id = :uid LIMIT 1"),
+        link_row = (await db.execute(
+            text("SELECT code FROM link_codes WHERE user_id = :uid ORDER BY id DESC LIMIT 1"),
             {"uid": user.id}
         )).fetchone()
 
-        if not linked_row:
-            return {"ok": True, "linked": False}
+        has_code = bool(link_row and link_row[0])
+
+        server_rows = (await db.execute(
+            text("SELECT DISTINCT server_id FROM expeditions WHERE user_id = :uid AND server_id IS NOT NULL"),
+            {"uid": user.id}
+        )).fetchall()
+        servers_with_data = [r[0] for r in server_rows]
+
+        # Still check linked_accounts for game_player_id if available
+        linked_row = (await db.execute(
+            text("SELECT game_player_id, COALESCE(server_id, 'beta') FROM linked_accounts WHERE user_id = :uid LIMIT 1"),
+            {"uid": user.id}
+        )).fetchone()
 
         return {
             "ok": True,
-            "linked": True,
-            "game_player_id": linked_row[0],
-            "server_id": linked_row[1],
+            "has_code": has_code,
+            "linked": bool(linked_row),
+            "game_player_id": linked_row[0] if linked_row else None,
+            "servers_with_data": servers_with_data,
         }
 
 

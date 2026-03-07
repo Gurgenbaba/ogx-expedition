@@ -2,18 +2,47 @@
 {% block title %}Dashboard — OGX Expedition{% endblock %}
 {% block content %}
 
-<div class="row between" style="margin-bottom:24px">
+<div class="row between" style="margin-bottom:16px">
   <div>
     <h1>{{ t('dash.title') }}</h1>
     <p class="muted" style="font-size:13px;margin-top:4px">{{ t('dash.subtitle', total=total) }}</p>
   </div>
-  <a href="/import" class="btn">{{ t('dash.import_btn') }}</a>
+  <div style="display:flex;gap:8px;align-items:center">
+    {% if has_link_code %}
+    <button class="btn btn-sm ghost" id="btn-bridge-sync" type="button">
+      <span id="bridge-sync-label">{{ t('dash.bridge_sync') }}</span>
+    </button>
+    {% endif %}
+    <a href="/import" class="btn btn-sm">{{ t('dash.import_btn') }}</a>
+  </div>
 </div>
+
+{# ── Bridge status message ── #}
+<div id="bridge-status-msg" style="display:none;margin-bottom:12px;font-size:13px;padding:8px 12px;border-radius:8px;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.2);color:#34d399"></div>
+
+{# ── Server filter tabs (only shown if data from multiple servers) ── #}
+{% if servers and servers|length > 1 %}
+<div style="display:flex;gap:6px;margin-bottom:20px;flex-wrap:wrap">
+  <a href="/" class="btn btn-sm {% if not server_filter %}active{% else %}ghost{% endif %}">{{ t('dash.server_all') }}</a>
+  {% for srv in servers %}
+  <a href="/?server={{ srv }}" class="btn btn-sm {% if server_filter == srv %}active{% else %}ghost{% endif %}">{{ srv | upper }}</a>
+  {% endfor %}
+</div>
+{% elif servers and servers|length == 1 and server_filter %}
+<div style="display:flex;gap:6px;margin-bottom:20px">
+  <a href="/" class="btn btn-sm ghost">← {{ t('dash.server_all') }}</a>
+  <span class="btn btn-sm active">{{ server_filter | upper }}</span>
+</div>
+{% endif %}
 
 {% if not stats %}
 <div class="empty-state">
   <p style="margin-bottom:12px">{{ t('dash.empty') }}</p>
+  {% if has_link_code %}
+  <button class="btn" id="btn-bridge-sync-empty" type="button">{{ t('dash.bridge_sync') }}</button>
+  {% else %}
   <a href="/import" class="btn">{{ t('dash.empty_cta') }}</a>
+  {% endif %}
 </div>
 {% else %}
 
@@ -213,4 +242,55 @@
 }
 </style>
 {% endblock %}
-{% block scripts %}{% endblock %}
+{% block scripts %}
+<script>
+(function() {
+  function syncBtn(id) {
+    var btn = document.getElementById(id);
+    if (!btn) return;
+    btn.addEventListener("click", function() {
+      var label = document.getElementById("bridge-sync-label");
+      var msg   = document.getElementById("bridge-status-msg");
+      btn.disabled = true;
+      if (label) label.textContent = "...";
+      fetch("/api/bridge/sync", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + (localStorage.getItem("ogx_token") || "")
+        },
+        body: JSON.stringify({})
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        btn.disabled = false;
+        if (label) label.textContent = window.I18N && window.I18N["dash.bridge_sync"] || "Sync";
+        if (msg) {
+          msg.style.display = "";
+          if (d.ok) {
+            var parts = (d.servers || []).map(function(s) {
+              return s.server_id.toUpperCase() + ": +" + s.inserted;
+            });
+            msg.textContent = (window.I18N && window.I18N["dash.bridge_ok"] || "Sync OK") +
+              " — " + parts.join(", ") + (d.inserted > 0 ? " — Seite neu laden" : "");
+            if (d.inserted > 0) setTimeout(function() { location.reload(); }, 1500);
+          } else {
+            msg.style.background = "rgba(251,113,133,.08)";
+            msg.style.borderColor = "rgba(251,113,133,.2)";
+            msg.style.color = "#fb7185";
+            msg.textContent = "Fehler: " + (d.error || "unbekannt");
+          }
+        }
+      })
+      .catch(function(e) {
+        btn.disabled = false;
+        if (label) label.textContent = window.I18N && window.I18N["dash.bridge_sync"] || "Sync";
+        if (msg) { msg.style.display = ""; msg.textContent = "Netzwerkfehler: " + e; }
+      });
+    });
+  }
+  syncBtn("btn-bridge-sync");
+  syncBtn("btn-bridge-sync-empty");
+})();
+</script>
+{% endblock %}

@@ -274,5 +274,8 @@
   "dash.pirate_win": "Win Chance",
   "dash.pirate_loss": "Fleet Loss",
   "login.tagline": "Fleet Analytics",
-  "prestige.loading": "Loading…"
+  "prestige.loading": "Loading…",
+  "dash.bridge_sync": "Sync via Bridge",
+  "dash.bridge_ok": "Sync complete",
+  "dash.server_all": "All Servers"
 }

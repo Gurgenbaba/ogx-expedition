@@ -72,6 +72,9 @@ class Expedition(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
 
+    # Universe/server this expedition belongs to (e.g. "uni1", "beta")
+    server_id: Mapped[Optional[str]] = mapped_column(String(16), nullable=True, index=True)
+
     # Game-assigned expedition number (unique per universe/account)
     exp_number: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
 
@@ -120,6 +123,7 @@ class Expedition(Base):
         Index("ix_exp_user_returned", "user_id", "returned_at"),
         Index("ix_exp_user_outcome", "user_id", "outcome_type"),
         Index("ix_exp_user_number", "user_id", "exp_number"),
+        Index("ix_exp_user_server", "user_id", "server_id"),
     )
 
 
