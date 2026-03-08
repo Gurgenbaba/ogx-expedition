@@ -598,8 +598,11 @@ async def stats_page(request: Request):
         if not u:
             return RedirectResponse(url="/", status_code=303)
 
+        server_filter = request.query_params.get("server") or None
+        servers = await _get_user_servers(db, u.id)
+
         exps = (await db.execute(
-            select(Expedition).where(Expedition.user_id == u.id).order_by(Expedition.returned_at.desc())
+            _server_filter_query(u.id, server_filter).order_by(Expedition.returned_at.desc())
         )).scalars().all()
 
         stats = get_user_stats_summary(list(exps))
@@ -669,6 +672,8 @@ async def stats_page(request: Request):
             "timeline": timeline,
             "outcome_types": all_outcome_types,
             "active_nav": "stats",
+            "servers": servers,
+            "server_filter": server_filter,
         }, db, u)
 
 
@@ -679,15 +684,17 @@ async def dm_page(request: Request):
         if not u:
             return RedirectResponse(url="/", status_code=303)
 
+        server_filter = request.query_params.get("server") or None
+        servers = await _get_user_servers(db, u.id)
+
         exps = (await db.execute(
-            select(Expedition)
-            .where(Expedition.user_id == u.id)
+            _server_filter_query(u.id, server_filter)
             .where(Expedition.dark_matter > 0)
             .order_by(Expedition.returned_at.asc())
         )).scalars().all()
 
         all_exps_count = (await db.execute(
-            select(func.count(Expedition.id)).where(Expedition.user_id == u.id)
+            _server_filter_query(u.id, server_filter).with_only_columns(func.count(Expedition.id))
         )).scalar() or 0
 
         # Build weekly/monthly buckets
@@ -751,6 +758,8 @@ async def dm_page(request: Request):
             "dm_rate": dm_rate,
             "weekly": last_12_weeks,
             "monthly": last_12_months,
+            "servers": servers,
+            "server_filter": server_filter,
         }, db, u)
 
 
@@ -833,9 +842,9 @@ async def export_csv(request: Request):
         if err:
             return err
 
+        server_filter = request.query_params.get("server") or None
         exps = (await db.execute(
-            select(Expedition).where(Expedition.user_id == u.id)
-            .order_by(Expedition.returned_at.desc())
+            _server_filter_query(u.id, server_filter).order_by(Expedition.returned_at.desc())
         )).scalars().all()
 
         buf = io.StringIO()
@@ -1028,6 +1037,24 @@ async def delete_code(code_id: int, request: Request):
         await db.commit()
         return {"ok": True}
 
+
+
+
+def _server_filter_query(user_id: int, server_filter: Optional[str]):
+    """Returns a SQLAlchemy select for expeditions filtered by server_id."""
+    q = select(Expedition).where(Expedition.user_id == user_id)
+    if server_filter:
+        q = q.where(Expedition.server_id == server_filter)
+    return q
+
+
+async def _get_user_servers(db, user_id: int) -> list[str]:
+    """Returns list of distinct server_ids for a user."""
+    rows = (await db.execute(
+        text("SELECT DISTINCT server_id FROM expeditions WHERE user_id = :uid AND server_id IS NOT NULL ORDER BY server_id"),
+        {"uid": user_id}
+    )).fetchall()
+    return [r[0] for r in rows]
 
 # ---------------------------------------------------------------------------
 # Bridge sync

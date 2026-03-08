@@ -17,17 +17,36 @@
         <span class="brand-rest">EXPEDITION</span>
       </a>
       <nav class="nav" aria-label="Main navigation">
-        <a href="/" class="{% if active_nav == 'dashboard' %}active{% endif %}">{{ t('nav.dashboard') }}</a>
+        {%- set sp = "?server=" + server_filter if server_filter is defined and server_filter else "" -%}
+        <a href="/{{ sp }}" class="{% if active_nav == 'dashboard' %}active{% endif %}">{{ t('nav.dashboard') }}</a>
         <a href="/import" class="{% if active_nav == 'import' %}active{% endif %}">{{ t('nav.import') }}</a>
-        <a href="/stats" class="{% if active_nav == 'stats' %}active{% endif %}">{{ t('nav.stats') }}</a>
-        <a href="/dm" class="{% if active_nav == 'dm' %}active{% endif %}">{{ t('nav.dm') }}</a>
+        <a href="/stats{{ sp }}" class="{% if active_nav == 'stats' %}active{% endif %}">{{ t('nav.stats') }}</a>
+        <a href="/dm{{ sp }}" class="{% if active_nav == 'dm' %}active{% endif %}">{{ t('nav.dm') }}</a>
         <a href="/optimizer" class="{% if active_nav == 'optimizer' %}active{% endif %}">{{ t('nav.optimizer') }}</a>
         <a href="/codes" class="{% if active_nav == 'codes' %}active{% endif %}">
           {{ t('nav.codes') }}{% if pending_codes_count is defined and pending_codes_count > 0 %}<span class="badge-count">{{ pending_codes_count }}</span>{% endif %}
         </a>
         <a href="https://ogx-oraclev2-production.up.railway.app" target="_blank" class="muted">{{ t('nav.oracle') }}</a>
       </nav>
-      <div style="display:flex;align-items:center;gap:8px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+
+        {# ── Server-Selector ── #}
+        {% if servers is defined and servers %}
+        <div style="display:flex;gap:4px">
+          <a href="{{ request.url.path }}" class="btn btn-sm {% if not server_filter %}active{% else %}ghost{% endif %}" style="font-size:10px;padding:3px 8px">ALL</a>
+          {% for srv in servers %}
+          <a href="{{ request.url.path }}?server={{ srv }}" class="btn btn-sm {% if server_filter == srv %}active{% else %}ghost{% endif %}" style="font-size:10px;padding:3px 8px;text-transform:uppercase">{{ srv }}</a>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        {# ── Lang-Switcher ── #}
+        <div style="display:flex;gap:3px">
+          {% for l in langs %}
+          <a href="/lang/{{ l.code }}" class="btn btn-sm ghost" style="font-size:11px;padding:3px 7px;{% if lang == l.code %}outline:1px solid var(--acc-0);{% endif %}">{{ l.flag }} {{ l.code | upper }}</a>
+          {% endfor %}
+        </div>
+
         <div class="authbox" id="authbox">
           {% if user %}
             <span class="muted fs-12">{{ user.username }}{% if user.is_admin %} (Admin){% endif %}</span>
