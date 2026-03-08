@@ -303,11 +303,15 @@ async def import_page(request: Request):
         u, _ = await require_jwt_user(request, db)
         if not u:
             return RedirectResponse(url="/", status_code=303)
-        return await _template_with_codes(request, "import.html", {"user": u, "active_nav": "import"}, db, u)
+        return await _template_with_codes(request, "import.html", {
+            "user": u,
+            "active_nav": "import",
+            "known_servers": KNOWN_SERVERS,
+        }, db, u)
 
 
 @app.post("/import")
-async def do_import(request: Request, raw_text: str = Form(...)):
+async def do_import(request: Request, raw_text: str = Form(...), server_id: str = Form(default="")):
     async with AsyncSessionLocal() as db:
         u, err = await require_jwt_user(request, db)
         if err:
@@ -315,6 +319,11 @@ async def do_import(request: Request, raw_text: str = Form(...)):
 
         if len(raw_text.encode()) > settings.max_paste_bytes:
             return JSONResponse({"ok": False, "error": "paste_too_large"}, status_code=413)
+
+        # Validate server_id
+        import_server_id: Optional[str] = server_id.strip() or None
+        if import_server_id and import_server_id not in KNOWN_SERVERS:
+            import_server_id = None
 
         parsed = parse_expedition_text(raw_text)
         if not parsed:
@@ -334,6 +343,7 @@ async def do_import(request: Request, raw_text: str = Form(...)):
 
             row = dict(
                 user_id=uid,
+                server_id=import_server_id,
                 exp_number=p.exp_number,
                 returned_at=p.returned_at,
                 outcome_type=p.outcome_type,
@@ -348,7 +358,7 @@ async def do_import(request: Request, raw_text: str = Form(...)):
                 pirate_strength=p.pirate_strength,
                 pirate_win_chance=p.pirate_win_chance,
                 pirate_loss_rate=p.pirate_loss_rate,
-                raw_text=None,  # parsed data already extracted, no need to store raw
+                raw_text=None,
                 dedup_key=p.dedup_key,
             )
 
@@ -424,7 +434,9 @@ async def do_import(request: Request, raw_text: str = Form(...)):
 
 @app.post("/api/import")
 async def api_import(request: Request, payload: dict = Body(...)):
-    """JSON import endpoint for the Collector userscript. Returns JSON instead of redirect."""
+    """JSON import endpoint for the Collector userscript. Returns JSON instead of redirect.
+    Payload may include server_id: 'uni1' | 'beta' to tag expeditions by universe.
+    """
     async with AsyncSessionLocal() as db:
         u, err = await require_jwt_user(request, db)
         if err:
@@ -436,6 +448,11 @@ async def api_import(request: Request, payload: dict = Body(...)):
 
         if len(raw_text.encode()) > settings.max_paste_bytes:
             return JSONResponse({"ok": False, "error": "paste_too_large"}, status_code=413)
+
+        # server_id from userscript payload (e.g. "uni1" or "beta")
+        api_server_id: Optional[str] = str(payload.get("server_id") or "").strip() or None
+        if api_server_id and api_server_id not in KNOWN_SERVERS:
+            api_server_id = None
 
         parsed = parse_expedition_text(raw_text)
         if not parsed:
@@ -451,6 +468,7 @@ async def api_import(request: Request, payload: dict = Body(...)):
 
             row = dict(
                 user_id=uid,
+                server_id=api_server_id,
                 exp_number=p.exp_number,
                 returned_at=p.returned_at,
                 outcome_type=p.outcome_type,

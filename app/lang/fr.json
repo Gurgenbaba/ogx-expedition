@@ -277,5 +277,7 @@
   "prestige.loading": "Chargement…",
   "dash.bridge_sync": "Sync via Bridge",
   "dash.bridge_ok": "Sync terminé",
-  "dash.server_all": "Tous les serveurs"
+  "dash.server_all": "Tous les serveurs",
+  "import.server_label": "Univers / Serveur",
+  "import.server_unknown": "Inconnu"
 }

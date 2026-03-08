@@ -35,6 +35,26 @@
     </ol>
 
     <form method="post" action="/import">
+
+      {# ── Server-Auswahl ── #}
+      <div style="margin-bottom:20px">
+        <label class="fs-12 muted" style="display:block;margin-bottom:10px;letter-spacing:.04em;text-transform:uppercase">
+          {{ t('import.server_label') }}
+        </label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <label style="cursor:pointer;display:flex;align-items:center;gap:8px;padding:8px 16px;border-radius:10px;border:1px solid var(--line-2);background:rgba(0,0,0,.2);transition:border-color .15s">
+            <input type="radio" name="server_id" value="" checked style="accent-color:var(--acc-0)">
+            <span class="fs-13">{{ t('import.server_unknown') }}</span>
+          </label>
+          {% for srv in known_servers %}
+          <label style="cursor:pointer;display:flex;align-items:center;gap:8px;padding:8px 16px;border-radius:10px;border:1px solid var(--line-2);background:rgba(0,0,0,.2);transition:border-color .15s">
+            <input type="radio" name="server_id" value="{{ srv }}" style="accent-color:var(--acc-0)">
+            <span class="fs-13 mono" style="font-weight:600;text-transform:uppercase">{{ srv }}</span>
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+
       <div style="margin-bottom:16px">
         <label class="fs-12 muted" style="display:block;margin-bottom:8px">
           {{ t('import.label') }}
