@@ -1083,9 +1083,10 @@ async def _sync_server(db, user_id: int, link_code: str, server_id: str) -> dict
         ships_raw   = item.get("ships_found")
         ships_delta = ships_raw if isinstance(ships_raw, dict) else None
 
-        # dedup_key includes server_id so same expo on different universes is unique
-        raw_key   = f"{user_id}|{server_id}|{returned_at.isoformat()}|{outcome_type}"
-        dedup_key = "bridge_" + hashlib.sha256(raw_key.encode()).hexdigest()[:48]
+        # Use same dedup_key format as manual parser so bridge data matches existing imports.
+        # Format: sha256(returned_at|outcome_type|metal|crystal)[:32]
+        raw_key   = f"{returned_at}|{outcome_type}|{metal}|{crystal}"
+        dedup_key = hashlib.sha256(raw_key.encode()).hexdigest()[:32]
 
         stmt = pg_insert(Expedition).values(
             user_id     = user_id,
